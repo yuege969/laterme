@@ -1,0 +1,46 @@
+/* LaterMe bookmark manager enhancement styles */
+
+.laterme-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0 2px 12px;
+  margin-bottom: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+  max-width: 100%;
+}
+
+.laterme-note:hover {
+  background-color: rgba(79, 70, 229, 0.06);
+}
+
+.laterme-note-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.laterme-note-text {
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.laterme-note-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.laterme-note-empty .laterme-note-add-text {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.laterme-note-empty:hover .laterme-note-add-text {
+  color: #4f46e5;
+}

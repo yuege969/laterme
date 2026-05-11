@@ -1,0 +1,268 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.bookmarks-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-left h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.bookmark-count {
+  font-size: 13px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-link {
+  font-size: 12px;
+  color: #9ca3af;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.header-link:hover {
+  color: #4f46e5;
+}
+
+.search-input {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  width: 200px;
+}
+
+.search-input:focus {
+  border-color: #4f46e5;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.filter-btn.active {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
+
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+}
+
+.bookmark-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
+  transition: box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.bookmark-item:hover {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.bookmark-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bookmark-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.bookmark-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-url {
+  font-size: 11px;
+  color: #9ca3af;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 24px;
+}
+
+.bookmark-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 24px;
+  margin-top: 2px;
+  padding: 2px 0;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.bookmark-note:hover {
+  background: rgba(79, 70, 229, 0.05);
+}
+
+.note-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.note-text {
+  color: #6b7280;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-text-empty {
+  color: #d1d5db;
+  font-style: italic;
+}
+
+.note-meta {
+  display: flex;
+  gap: 8px;
+  margin-left: 24px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.note-meta .intent-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.note-meta .intent-tag.temp {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.note-meta .intent-tag.expired {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.note-meta .intent-tag.archived {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.note-meta .note-age {
+  color: #9ca3af;
+}
+
+.note-meta .note-age.old {
+  color: #f59e0b;
+}
+
+.note-meta .note-age.very-old {
+  color: #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  color: #9ca3af;
+}
+
+.empty-state p {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.empty-hint {
+  font-size: 12px !important;
+  color: #d1d5db !important;
+}
+
+.hidden {
+  display: none;
+}

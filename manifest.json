@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "LaterMe",
+  "version": "1.0.0",
+  "description": "收藏时留一句话，让收藏夹重新活过来",
+  "permissions": [
+    "bookmarks",
+    "history",
+    "storage",
+    "alarms",
+    "activeTab",
+    "scripting",
+    "notifications"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/capture.ts"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/resurface.ts"],
+      "css": ["src/styles/resurfacing.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "commands": {},
+  "action": {
+    "default_popup": "src/content/popup/index.html",
+    "default_title": "LaterMe - 收藏时留一句话",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/popup/*",
+        "newtab/*",
+        "bookmarks/*",
+        "options/*",
+        "styles/*",
+        "chunks/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  }
+}

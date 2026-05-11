@@ -1,0 +1,42 @@
+import { showInlinePopup } from './inlinePopup';
+
+// ── Deduplication guard ───────────────────────────────────────────────────────
+// The script may be injected more than once on a page (e.g. via
+// scripting.executeScript fallback). Guard prevents duplicate listeners.
+const _win = window as Window & { __laterme_capture?: boolean };
+if (!_win.__laterme_capture) {
+  _win.__laterme_capture = true;
+
+  // ── Ctrl+D / Cmd+D interception ──────────────────────────────────────────
+  // Registering in the capture phase (third arg = true) means this listener
+  // fires before page scripts. Calling preventDefault() stops Chrome from
+  // processing the shortcut natively, which prevents the "已添加书签" bubble
+  // from appearing — giving us exclusive control over the shortcut.
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyD') {
+      e.preventDefault();
+      showInlinePopup({
+        url: window.location.href,
+        title: document.title || window.location.href,
+      });
+    }
+  }, true);
+
+  // ── Message handler for star-icon bookmarks ───────────────────────────────
+  // background/bookmark.ts intercepts bookmarks.onCreated (star icon click),
+  // removes the native bookmark, and sends SHOW_INLINE_POPUP here.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    const msg = message as {
+      type: string;
+      payload?: { url: string; title: string; parentId?: string };
+    };
+
+    if (msg.type === 'SHOW_INLINE_POPUP' && msg.payload) {
+      showInlinePopup(msg.payload);
+      sendResponse({ ok: true });
+      return false;
+    }
+
+    return false;
+  });
+}

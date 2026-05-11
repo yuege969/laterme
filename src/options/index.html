@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaterMe 设置</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <h1>LaterMe 设置</h1>
+      <p class="subtitle">收藏时留一句话，让收藏夹重新活过来</p>
+    </header>
+
+    <main class="options-main">
+      <!-- Resurfacing Settings -->
+      <section class="settings-section">
+        <h2 class="section-title">重新提醒</h2>
+        <p class="section-desc">把旧收藏重新翻出来，提醒你去看看</p>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <label class="setting-label">启用重新提醒</label>
+            <span class="setting-hint">在新标签页底部展示旧收藏提醒</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="resurfacingEnabled" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <label class="setting-label">提醒频率</label>
+            <span class="setting-hint">多久提醒一次</span>
+          </div>
+          <select id="resurfacingFrequency" class="select-input">
+            <option value="daily">每天一次</option>
+            <option value="weekly">每周一次</option>
+            <option value="never">从不</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <label class="setting-label">收藏范围</label>
+            <span class="setting-hint">多久以内的收藏参与提醒</span>
+          </div>
+          <select id="maxAgeDays" class="select-input">
+            <option value="90">90 天内</option>
+            <option value="180">180 天内</option>
+            <option value="365">1 年内</option>
+            <option value="730">2 年内</option>
+            <option value="0">不限时间</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Data Management -->
+      <section class="settings-section">
+        <h2 class="section-title">数据管理</h2>
+        <p class="section-desc">所有数据存储在本地，你可以随时导出或删除</p>
+
+        <div class="data-actions">
+          <button id="exportBtn" class="btn btn-outline">
+            <span class="btn-icon">📥</span>
+            导出数据
+          </button>
+          <button id="importBtn" class="btn btn-outline">
+            <span class="btn-icon">📤</span>
+            导入数据
+          </button>
+          <button id="clearBtn" class="btn btn-outline btn-danger">
+            <span class="btn-icon">🗑️</span>
+            清除所有数据
+          </button>
+        </div>
+        <input type="file" id="importFile" accept=".json" style="display:none" />
+
+        <div id="statsInfo" class="stats-info">
+          加载中...
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="settings-section about-section">
+        <h2 class="section-title">关于 LaterMe</h2>
+        <p>版本 1.0.0</p>
+        <p class="about-desc">
+          不帮助用户"收藏更多"，而是帮助用户"重新打开"。<br />
+          所有数据仅存储在您的设备上，不会上传到任何服务器。
+        </p>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="index.ts" type="module"></script>
+</body>
+</html>
