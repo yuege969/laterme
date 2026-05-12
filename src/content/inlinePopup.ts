@@ -372,19 +372,21 @@ export function showInlinePopup(params: InlinePopupParams): void {
     chrome.runtime.sendMessage({ type: 'OPEN_BOOKMARKS_PAGE' }).catch(() => { /* quiet */ });
   });
 
-  // ── escape key ──
+  // ── escape key — true cancel, no bookmark created ──
   const onKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
-      skipBtn.click();
+      removeInlinePopup();
       document.removeEventListener('keydown', onKeydown, true);
+      document.removeEventListener('click', onOutsideClick, true);
     }
   };
   document.addEventListener('keydown', onKeydown, true);
 
-  // ── click outside ──
+  // ── click outside — true cancel, no bookmark created ──
   const onOutsideClick = (e: MouseEvent) => {
     if (e.target !== host && !host.contains(e.target as Node)) {
-      skipBtn.click();
+      removeInlinePopup();
+      document.removeEventListener('keydown', onKeydown, true);
       document.removeEventListener('click', onOutsideClick, true);
     }
   };
