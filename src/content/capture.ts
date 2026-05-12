@@ -3,7 +3,7 @@ import { showInlinePopup } from './inlinePopup';
 // ── Deduplication guard ───────────────────────────────────────────────────────
 // The script may be injected more than once on a page (e.g. via
 // scripting.executeScript fallback). Guard prevents duplicate listeners.
-const _win = window as Window & { __laterme_capture?: boolean };
+const _win = window as Window & { __laterme_capture?: boolean; __laterme_ctrl_d_at?: number };
 if (!_win.__laterme_capture) {
   _win.__laterme_capture = true;
 
@@ -15,6 +15,7 @@ if (!_win.__laterme_capture) {
   document.addEventListener('keydown', (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.code === 'KeyD') {
       e.preventDefault();
+      _win.__laterme_ctrl_d_at = Date.now();
       showInlinePopup({
         url: window.location.href,
         title: document.title || window.location.href,
@@ -32,7 +33,13 @@ if (!_win.__laterme_capture) {
     };
 
     if (msg.type === 'SHOW_INLINE_POPUP' && msg.payload) {
-      showInlinePopup(msg.payload);
+      // If the Ctrl+D keydown handler already opened the popup within the
+      // last second, skip recreating it (prevents flash when both code paths
+      // fire — e.g. when preventDefault() doesn't suppress the bookmark).
+      const ctrlDAt = _win.__laterme_ctrl_d_at ?? 0;
+      if (Date.now() - ctrlDAt > 1000) {
+        showInlinePopup(msg.payload);
+      }
       sendResponse({ ok: true });
       return false;
     }

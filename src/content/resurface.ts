@@ -1,4 +1,3 @@
-import { runtime } from '../utils/browser';
 import type { ResurfacingScore } from '../storage/types';
 
 const BANNER_ID = 'laterme-resurfacing-banner';
@@ -22,7 +21,7 @@ async function init(): Promise<void> {
 
   // Check if banner was already shown today (via background log)
   try {
-    const shown = await runtime.sendMessage({ type: 'WAS_SHOWN_TODAY' });
+    const shown = await chrome.runtime.sendMessage({ type: 'WAS_SHOWN_TODAY' });
     if (shown?.shown) return;
   } catch { return; }
 
@@ -46,7 +45,7 @@ async function init(): Promise<void> {
   // If no pending from alarm, try manual trigger
   if (!score) {
     try {
-      const result = await runtime.sendMessage({
+      const result = await chrome.runtime.sendMessage({
         type: 'TRIGGER_RESURFACING',
       });
       if (result?.result) {
@@ -111,11 +110,11 @@ function bindEvents(score: ResurfacingScore): void {
 
   document.getElementById('laterme-open')?.addEventListener('click', async () => {
     try {
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
         payload: { url: score.url, action: 'opened' },
       });
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'OPEN_BOOKMARK',
         payload: { url: score.url },
       });
@@ -127,11 +126,11 @@ function bindEvents(score: ResurfacingScore): void {
 
   document.getElementById('laterme-snooze')?.addEventListener('click', async () => {
     try {
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
         payload: { url: score.url, action: 'snoozed' },
       });
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'UPDATE_META',
         payload: {
           url: score.url,
@@ -144,11 +143,11 @@ function bindEvents(score: ResurfacingScore): void {
 
   document.getElementById('laterme-archive')?.addEventListener('click', async () => {
     try {
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
         payload: { url: score.url, action: 'dismissed' },
       });
-      await runtime.sendMessage({
+      await chrome.runtime.sendMessage({
         type: 'UPDATE_META',
         payload: { url: score.url, status: 'archived' },
       });
@@ -157,7 +156,7 @@ function bindEvents(score: ResurfacingScore): void {
   });
 
   // Log that we showed it
-  runtime.sendMessage({
+  chrome.runtime.sendMessage({
     type: 'LOG_RESURFACING_ACTION',
     payload: { url: score.url, action: 'ignored' },
   }).catch(() => {});

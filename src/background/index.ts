@@ -23,6 +23,47 @@ initHistoryListeners();
 initResurfacingAlarm();
 initAlarms();
 
+// Toolbar icon click — show inline popup (default_popup removed so this fires)
+chrome.action.onClicked.addListener(async (tab) => {
+  const tabId = tab.id;
+  const url = tab.url;
+  const title = tab.title || url || '';
+  if (!tabId || !url) return;
+
+  const popupPayload = { url, title };
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: 'SHOW_INLINE_POPUP',
+      payload: popupPayload,
+    });
+    if (response?.ok) return;
+  } catch (err) {
+    const msg = (err as Error)?.message ?? '';
+    if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
+      // Content script not yet injected — inject and retry
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content/capture.js'],
+        });
+        const response2 = await chrome.tabs.sendMessage(tabId, {
+          type: 'SHOW_INLINE_POPUP',
+          payload: popupPayload,
+        });
+        if (response2?.ok) return;
+      } catch { /* fall through to popup window */ }
+    } else {
+      return;
+    }
+  }
+
+  // Fallback for restricted pages (e.g. chrome://)
+  const popupUrl = runtime.getURL(
+    `content/popup/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`
+  );
+  openPopupWindow(popupUrl);
+});
+
 // On first install, do an initial resurfacing check
 runtime.onInstalled.addListener(async () => {
   await checkAndNotifyResurfacing();

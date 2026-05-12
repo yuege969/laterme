@@ -27,23 +27,66 @@ export function initBookmarkListeners(): void {
     const title = bookmark.title || url;
     const parentId = bookmark.parentId || '';
 
-    // Try to send the inline popup message to the active tab
+    // Locate the active tab once; reuse for both scripting and messaging.
+    let tabId: number | undefined;
+    let windowId: number | undefined;
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (tab?.id) {
-        const response = await chrome.tabs.sendMessage(tab.id, {
-          type: 'SHOW_INLINE_POPUP',
-          payload: { url, title, parentId },
+      tabId = tab?.id;
+      windowId = tab?.windowId;
+    } catch { /* quiet */ }
+
+    if (tabId) {
+      // Chrome's native bookmark bubble closes only when the browser window
+      // loses OS-level focus. The only reliable way to trigger this from an
+      // extension is to momentarily create a tiny popup window (which steals
+      // OS focus → bubble dismisses), then immediately remove it so focus
+      // returns to the original window.
+      try {
+        const stealWin = await chrome.windows.create({
+          url: 'about:blank',
+          type: 'popup',
+          width: 1,
+          height: 1,
+          focused: true,
         });
-        // If content script responded, it handled the popup — we're done
+        if (stealWin?.id) {
+          await chrome.windows.remove(stealWin.id);
+        }
+        // Explicitly restore focus to the original window so the inline popup
+        // receives keyboard input immediately.
+        if (windowId !== undefined) {
+          await chrome.windows.update(windowId, { focused: true });
+        }
+      } catch { /* restricted — ignore */ }
+
+      // Show our inline popup
+      const popupPayload = { url, title, parentId };
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, {
+          type: 'SHOW_INLINE_POPUP',
+          payload: popupPayload,
+        });
         if (response?.ok) return;
-      }
-    } catch (err) {
-      // Only fall through to popup window if it's a genuine connection error
-      // (e.g. chrome:// page where content scripts can't run)
-      const msg = (err as Error)?.message ?? '';
-      if (!msg.includes('Could not establish connection') && !msg.includes('Receiving end does not exist')) {
-        return; // some other error — don't open a duplicate window
+      } catch (err) {
+        const msg = (err as Error)?.message ?? '';
+        if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
+          // Content script not yet injected (tab was open before extension loaded).
+          // Inject it now and retry.
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              files: ['content/capture.js'],
+            });
+            const response2 = await chrome.tabs.sendMessage(tabId, {
+              type: 'SHOW_INLINE_POPUP',
+              payload: popupPayload,
+            });
+            if (response2?.ok) return;
+          } catch { /* fall through to popup window */ }
+        } else {
+          return;
+        }
       }
     }
 

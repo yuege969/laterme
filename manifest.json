@@ -36,7 +36,6 @@
   ],
   "commands": {},
   "action": {
-    "default_popup": "src/content/popup/index.html",
     "default_title": "LaterMe - 收藏时留一句话",
     "default_icon": {
       "16": "public/icons/icon16.png",
