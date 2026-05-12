@@ -27,23 +27,38 @@ export function initBookmarkListeners(): void {
     const title = bookmark.title || url;
     const parentId = bookmark.parentId || '';
 
-    // Try to send the inline popup message to the active tab
+    // Locate the active tab once; reuse for both scripting and messaging.
+    let tabId: number | undefined;
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (tab?.id) {
-        const response = await chrome.tabs.sendMessage(tab.id, {
+      tabId = tab?.id;
+    } catch { /* quiet */ }
+
+    if (tabId) {
+      // After the bookmark is removed the star icon reverts to empty, but
+      // Chrome's native "已添加书签" popup stays open until the page gets
+      // focus. Calling window.focus() via scripting gives focus back to the
+      // web content, which dismisses the non-modal browser popup.
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => { window.focus(); },
+        });
+      } catch { /* restricted page (e.g. chrome://) — ignore */ }
+
+      // Show our inline popup
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, {
           type: 'SHOW_INLINE_POPUP',
           payload: { url, title, parentId },
         });
-        // If content script responded, it handled the popup — we're done
         if (response?.ok) return;
-      }
-    } catch (err) {
-      // Only fall through to popup window if it's a genuine connection error
-      // (e.g. chrome:// page where content scripts can't run)
-      const msg = (err as Error)?.message ?? '';
-      if (!msg.includes('Could not establish connection') && !msg.includes('Receiving end does not exist')) {
-        return; // some other error — don't open a duplicate window
+      } catch (err) {
+        // Only fall through to popup window on genuine connection errors
+        const msg = (err as Error)?.message ?? '';
+        if (!msg.includes('Could not establish connection') && !msg.includes('Receiving end does not exist')) {
+          return;
+        }
       }
     }
 
