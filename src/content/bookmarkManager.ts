@@ -79,21 +79,30 @@ function createAddNoteElement(url: string): HTMLElement {
   return container;
 }
 
+function sendMessageSafe(message: unknown): void {
+  try {
+    if (!chrome.runtime?.id) return;
+  } catch { return; }
+  try {
+    runtime.sendMessage(message).catch(() => {});
+  } catch { /* context invalidated */ }
+}
+
 function showEditDialog(url: string, meta: BookmarkMeta): void {
   const newNote = prompt('修改备注（最多50字）：', meta.note);
   if (newNote === null) return; // cancelled
   if (newNote.trim() === '') {
     // Delete note
-    runtime.sendMessage({
+    sendMessageSafe({
       type: 'UPDATE_META',
-      payload: { url, note: '' },
+      payload: { bookmarkId: meta.bookmarkId, note: '' },
     });
     metasCache.delete(url);
   } else {
     const trimmed = newNote.trim().substring(0, 50);
-    runtime.sendMessage({
+    sendMessageSafe({
       type: 'UPDATE_META',
-      payload: { url, note: trimmed },
+      payload: { bookmarkId: meta.bookmarkId, note: trimmed },
     });
     if (metasCache.has(url)) {
       metasCache.get(url)!.note = trimmed;
@@ -102,14 +111,23 @@ function showEditDialog(url: string, meta: BookmarkMeta): void {
   refreshBookmarkNotes();
 }
 
-function showAddDialog(url: string): void {
+async function showAddDialog(url: string): Promise<void> {
   const note = prompt('留一句话给未来的自己（最多50字）：');
   if (!note || note.trim() === '') return;
   const trimmed = note.trim().substring(0, 50);
 
-  runtime.sendMessage({
+  // Find the Chrome bookmark ID for this URL
+  let bookmarkId: string | undefined;
+  try {
+    const results = await chrome.bookmarks.search({ url });
+    if (results.length > 0) bookmarkId = results[0].id;
+  } catch { /* quiet */ }
+  if (!bookmarkId) return;
+
+  sendMessageSafe({
     type: 'SAVE_BOOKMARK_META',
     payload: {
+      bookmarkId,
       url,
       note: trimmed,
       intent: null,
@@ -117,6 +135,7 @@ function showAddDialog(url: string): void {
   });
 
   metasCache.set(url, {
+    bookmarkId,
     url,
     note: trimmed,
     intent: null,

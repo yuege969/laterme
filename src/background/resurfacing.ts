@@ -47,6 +47,7 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
 
   // Store that we showed something today
   await addResurfacingLog({
+    bookmarkId: best.bookmarkId,
     url: best.url,
     shownAt: Date.now(),
     action: 'ignored', // Will be updated when user acts
@@ -90,7 +91,7 @@ async function checkExpiredBookmarks(): Promise<void> {
   for (const meta of allMetas) {
     if (meta.intent === 'temp' && meta.status === 'active') {
       if (now - meta.createdAt > threeDays) {
-        await updateMeta(meta.url, { status: 'expired' });
+        await updateMeta(meta.bookmarkId, { status: 'expired' });
         expiredCount++;
       }
     }

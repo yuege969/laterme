@@ -3,6 +3,7 @@ export type IntentType = 'project' | 'learn' | 'problem' | 'temp' | null;
 export type BookmarkStatus = 'active' | 'archived' | 'expired';
 
 export interface BookmarkMeta {
+  bookmarkId: string;
   url: string;
   note: string;
   intent: IntentType;
@@ -14,12 +15,14 @@ export interface BookmarkMeta {
 }
 
 export interface ResurfacingLog {
+  bookmarkId: string;
   url: string;
   shownAt: number;
   action: 'opened' | 'dismissed' | 'snoozed' | 'ignored';
 }
 
 export interface ResurfacingScore {
+  bookmarkId: string;
   url: string;
   title?: string;
   note: string;

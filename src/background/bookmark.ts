@@ -1,5 +1,5 @@
 import { bookmarks, history, openPopupWindow } from '../utils/browser';
-import { updateMeta, getMeta } from '../storage/db';
+import { updateMeta, getMetaByUrl } from '../storage/db';
 
 const POPUP_FLAG_KEY = 'laterme_popup_created';
 
@@ -101,17 +101,17 @@ export function initBookmarkListeners(): void {
 export function initHistoryListeners(): void {
   history.onVisited.addListener(async (historyItem) => {
     if (!historyItem.url) return;
-    const meta = await getMeta(historyItem.url);
+    const meta = await getMetaByUrl(historyItem.url);
     if (meta) {
       const now = Date.now();
-      await updateMeta(historyItem.url, {
+      await updateMeta(meta.bookmarkId, {
         lastOpenedAt: now,
         openCount: (meta.openCount || 0) + 1,
         status: meta.status === 'expired' ? 'active' : meta.status,
       });
 
       if (meta.nextReminderAt) {
-        await updateMeta(historyItem.url, { nextReminderAt: undefined });
+        await updateMeta(meta.bookmarkId, { nextReminderAt: undefined });
       }
     }
   });

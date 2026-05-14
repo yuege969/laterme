@@ -102,21 +102,21 @@ function showBanner(score: ResurfacingScore): void {
   document.getElementById('resurfacingOpen')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'opened' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' },
     });
-    runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { url: score.url } });
+    runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId: score.bookmarkId } });
     banner.classList.add('hidden');
   });
 
   document.getElementById('resurfacingSnooze')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'snoozed' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' },
     });
     await runtime.sendMessage({
       type: 'UPDATE_META',
       payload: {
-        url: score.url,
+        bookmarkId: score.bookmarkId,
         nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
       },
     });
@@ -126,11 +126,11 @@ function showBanner(score: ResurfacingScore): void {
   document.getElementById('resurfacingArchive')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'dismissed' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' },
     });
     await runtime.sendMessage({
       type: 'UPDATE_META',
-      payload: { url: score.url, status: 'archived' },
+      payload: { bookmarkId: score.bookmarkId, status: 'archived' },
     });
     banner.classList.add('hidden');
   });
@@ -142,7 +142,7 @@ function showBanner(score: ResurfacingScore): void {
   // Log the show
   runtime.sendMessage({
     type: 'LOG_RESURFACING_ACTION',
-    payload: { url: score.url, action: 'ignored' },
+    payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' },
   }).catch(() => {});
 }
 

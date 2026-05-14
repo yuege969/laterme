@@ -75,8 +75,9 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   switch (msg.type) {
     case 'SAVE_BOOKMARK_META': {
-      const payload = msg.payload as { url: string; note: string; intent: BookmarkMeta['intent'] };
+      const payload = msg.payload as { bookmarkId: string; url: string; note: string; intent: BookmarkMeta['intent'] };
       putMeta({
+        bookmarkId: payload.bookmarkId,
         url: payload.url,
         note: payload.note,
         intent: payload.intent,
@@ -89,8 +90,8 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'GET_BOOKMARK_META': {
-      const { url } = msg.payload as { url: string };
-      getMeta(url).then((meta) => sendResponse({ meta }));
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      getMeta(bookmarkId).then((meta) => sendResponse({ meta }));
       return true;
     }
 
@@ -100,14 +101,14 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'UPDATE_META': {
-      const { url, ...patch } = msg.payload as { url: string } & Partial<BookmarkMeta>;
-      updateMeta(url, patch).then(() => sendResponse({ success: true }));
+      const { bookmarkId, ...patch } = msg.payload as { bookmarkId: string } & Partial<BookmarkMeta>;
+      updateMeta(bookmarkId, patch).then(() => sendResponse({ success: true }));
       return true;
     }
 
     case 'DELETE_META': {
-      const { url } = msg.payload as { url: string };
-      deleteMeta(url).then(() => sendResponse({ success: true }));
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      deleteMeta(bookmarkId).then(() => sendResponse({ success: true }));
       return true;
     }
 
@@ -123,8 +124,9 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'LOG_RESURFACING_ACTION': {
-      const { url, action } = msg.payload as { url: string; action: 'opened' | 'dismissed' | 'snoozed' };
+      const { bookmarkId, url, action } = msg.payload as { bookmarkId: string; url: string; action: 'opened' | 'dismissed' | 'snoozed' };
       addResurfacingLog({
+        bookmarkId,
         url,
         shownAt: Date.now(),
         action,
@@ -154,10 +156,14 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'OPEN_BOOKMARK': {
-      const { url } = msg.payload as { url: string };
-      updateMeta(url, { lastOpenedAt: Date.now() }).then(() => {
-        chrome.tabs.create({ url });
-      });
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      (async () => {
+        await updateMeta(bookmarkId, { lastOpenedAt: Date.now() });
+        const [node] = await chrome.bookmarks.get(bookmarkId);
+        if (node?.url) {
+          chrome.tabs.create({ url: node.url });
+        }
+      })();
       return true;
     }
 
@@ -189,8 +195,9 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         await chrome.storage.local.set({ laterme_popup_created: Date.now() });
         const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
         if (parentId) arg.parentId = parentId;
-        try { await chrome.bookmarks.create(arg); } catch { /* already exists */ }
+        const bookmark = await chrome.bookmarks.create(arg);
         await putMeta({
+          bookmarkId: bookmark.id,
           url,
           note,
           intent,
@@ -216,21 +223,30 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         note: string;
         intent: BookmarkMeta['intent'];
       };
-      // First create the bookmark natively
-      chrome.bookmarks
-        .create({ title: payload.title, url: payload.url })
-        .then(() => {
-          return putMeta({
-            url: payload.url,
-            note: payload.note,
-            intent: payload.intent,
-            createdAt: Date.now(),
-            lastOpenedAt: Date.now(),
-            openCount: 0,
-            status: 'active',
-          });
-        })
-        .then(() => sendResponse({ success: true }));
+      (async () => {
+        const bookmark = await chrome.bookmarks.create({ title: payload.title, url: payload.url });
+        await putMeta({
+          bookmarkId: bookmark.id,
+          url: payload.url,
+          note: payload.note,
+          intent: payload.intent,
+          createdAt: Date.now(),
+          lastOpenedAt: Date.now(),
+          openCount: 0,
+          status: 'active',
+        });
+        sendResponse({ success: true });
+      })();
+      return true;
+    }
+
+    case 'DELETE_BOOKMARK': {
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      (async () => {
+        await deleteMeta(bookmarkId);
+        try { await chrome.bookmarks.remove(bookmarkId); } catch { /* already removed */ }
+        sendResponse({ success: true });
+      })();
       return true;
     }
 

@@ -112,11 +112,11 @@ function bindEvents(score: ResurfacingScore): void {
     try {
       await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
-        payload: { url: score.url, action: 'opened' },
+        payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' },
       });
       await chrome.runtime.sendMessage({
         type: 'OPEN_BOOKMARK',
-        payload: { url: score.url },
+        payload: { bookmarkId: score.bookmarkId },
       });
     } catch {
       window.open(score.url, '_blank');
@@ -128,12 +128,12 @@ function bindEvents(score: ResurfacingScore): void {
     try {
       await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
-        payload: { url: score.url, action: 'snoozed' },
+        payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' },
       });
       await chrome.runtime.sendMessage({
         type: 'UPDATE_META',
         payload: {
-          url: score.url,
+          bookmarkId: score.bookmarkId,
           nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
         },
       });
@@ -145,21 +145,23 @@ function bindEvents(score: ResurfacingScore): void {
     try {
       await chrome.runtime.sendMessage({
         type: 'LOG_RESURFACING_ACTION',
-        payload: { url: score.url, action: 'dismissed' },
+        payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' },
       });
       await chrome.runtime.sendMessage({
         type: 'UPDATE_META',
-        payload: { url: score.url, status: 'archived' },
+        payload: { bookmarkId: score.bookmarkId, status: 'archived' },
       });
     } catch { /* quiet */ }
     closeBanner();
   });
 
   // Log that we showed it
-  chrome.runtime.sendMessage({
-    type: 'LOG_RESURFACING_ACTION',
-    payload: { url: score.url, action: 'ignored' },
-  }).catch(() => {});
+  try {
+    chrome.runtime.sendMessage({
+      type: 'LOG_RESURFACING_ACTION',
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' },
+    }).catch(() => {});
+  } catch { /* context invalidated */ }
 }
 
 function escapeHtml(str: string): string {

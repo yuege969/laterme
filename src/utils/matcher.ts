@@ -38,6 +38,7 @@ export function calculateResurfacingScore(meta: BookmarkMeta): ResurfacingScore 
   const score = timeScore * 0.6 + intentScore * 0.4;
 
   return {
+    bookmarkId: meta.bookmarkId,
     url: meta.url,
     note: meta.note,
     score: Math.round(score * 100) / 100,

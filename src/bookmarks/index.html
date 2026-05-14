@@ -30,6 +30,7 @@
       <button class="filter-btn" data-filter="temp">临时</button>
       <button class="filter-btn" data-filter="expired">已过期</button>
       <button class="filter-btn" data-filter="archived">已归档</button>
+      <button class="filter-btn filter-btn-review" id="reviewBtn">🔍 复盘清理</button>
     </div>
 
     <div id="bookmarkList" class="bookmark-list">
@@ -39,6 +40,31 @@
     <div id="emptyState" class="empty-state hidden">
       <p>还没有收藏</p>
       <p class="empty-hint">浏览网页时按 Ctrl+D 收藏并添加备注</p>
+    </div>
+
+    <!-- Review Mode -->
+    <div id="reviewMode" class="review-mode hidden">
+      <div class="review-overlay">
+        <div class="review-card" id="reviewCard">
+          <div class="review-progress-bar">
+            <div class="review-progress-fill" id="reviewProgress"></div>
+          </div>
+          <div class="review-progress-text" id="reviewProgressText"></div>
+          <div class="review-card-body" id="reviewCardBody"></div>
+          <div class="review-card-actions">
+            <button class="review-btn review-btn-keep" id="reviewKeep">✅ 保留</button>
+            <button class="review-btn review-btn-archive" id="reviewArchive">📦 归档</button>
+            <button class="review-btn review-btn-delete" id="reviewDelete">🗑 删除</button>
+          </div>
+          <div class="review-keyboard-hint">← 保留 · ↓ 归档 · → 删除 · Esc 退出</div>
+          <button class="review-exit" id="reviewExit">退出复盘</button>
+        </div>
+      </div>
+      <div class="review-complete hidden" id="reviewComplete">
+        <p class="review-done-title">复盘完成</p>
+        <p class="review-done-stats" id="reviewStats"></p>
+        <button class="review-btn review-btn-keep" id="reviewBack">返回书签列表</button>
+      </div>
     </div>
   </div>
 

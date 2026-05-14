@@ -98,16 +98,19 @@ saveBtn.addEventListener('click', async () => {
   // Set flag so background knows to skip the "add note" chip
   await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
 
+  let bookmarkId: string | undefined;
   try {
     // Create native bookmark, preserving original folder if intercepted from star icon
     const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
     if (popupParams.parentId) createArg.parentId = popupParams.parentId;
-    await api.bookmarks.create(createArg);
+    const bookmark = await api.bookmarks.create(createArg);
+    bookmarkId = bookmark.id;
   } catch {
-    // Bookmark might already exist — try to update
+    // Bookmark might already exist — try to find it
     try {
       const existing = await api.bookmarks.search({ url: popupParams.url });
       if (existing.length > 0) {
+        bookmarkId = existing[0].id;
         await api.bookmarks.update(existing[0].id, { title: popupParams.title });
       }
     } catch {
@@ -116,17 +119,20 @@ saveBtn.addEventListener('click', async () => {
   }
 
   // Save meta via background
-  try {
-    await runtime.sendMessage({
-      type: 'SAVE_BOOKMARK_META',
-      payload: {
-        url: popupParams.url,
-        note,
-        intent: selectedIntent,
-      },
-    });
-  } catch {
-    // Background might not be ready
+  if (bookmarkId) {
+    try {
+      await runtime.sendMessage({
+        type: 'SAVE_BOOKMARK_META',
+        payload: {
+          bookmarkId,
+          url: popupParams.url,
+          note,
+          intent: selectedIntent,
+        },
+      });
+    } catch {
+      // Background might not be ready
+    }
   }
 
   window.close();

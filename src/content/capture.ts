@@ -1,4 +1,5 @@
 import { showInlinePopup } from './inlinePopup';
+import { extractPageSummary } from '../utils/extractor';
 
 // ── Deduplication guard ───────────────────────────────────────────────────────
 // The script may be injected more than once on a page (e.g. via
@@ -19,6 +20,7 @@ if (!_win.__laterme_capture) {
       showInlinePopup({
         url: window.location.href,
         title: document.title || window.location.href,
+        summary: extractPageSummary(),
       });
     }
   }, true);
@@ -38,7 +40,7 @@ if (!_win.__laterme_capture) {
       // fire — e.g. when preventDefault() doesn't suppress the bookmark).
       const ctrlDAt = _win.__laterme_ctrl_d_at ?? 0;
       if (Date.now() - ctrlDAt > 1000) {
-        showInlinePopup(msg.payload);
+        showInlinePopup({ ...msg.payload, summary: extractPageSummary() });
       }
       sendResponse({ ok: true });
       return false;

@@ -6,6 +6,7 @@ export interface InlinePopupParams {
   url: string;
   title: string;
   parentId?: string;
+  summary?: string;
 }
 
 const HOST_ID = 'laterme-inline-popup-host';
@@ -247,7 +248,7 @@ const CSS = `
 `;
 
 // ── HTML template ─────────────────────────────────────────────────────────────
-function buildHTML(): string {
+function buildHTML(bookmarksUrl: string): string {
   return `
     <style>${CSS}</style>
     <div class="popup-container" id="laterme-popup">
@@ -292,7 +293,7 @@ function buildHTML(): string {
         </div>
       </div>
       <div class="popup-footer">
-        <button class="footer-link" id="bookmarksLink">📌 查看所有书签</button>
+        <a class="footer-link" id="bookmarksLink" href="${bookmarksUrl}" target="_blank">📌 查看所有书签</a>
         <div class="footer-actions">
           <button id="skipBtn" class="btn btn-ghost">跳过</button>
           <button id="saveBtn" class="btn btn-primary">保存</button>
@@ -308,13 +309,33 @@ export function removeInlinePopup(): void {
   document.getElementById(HOST_ID)?.remove();
 }
 
+function isContextValid(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+function sendSafe(message: unknown): void {
+  if (!isContextValid()) return;
+  try {
+    chrome.runtime.sendMessage(message).catch(() => {});
+  } catch { /* context invalidated */ }
+}
+
 export function showInlinePopup(params: InlinePopupParams): void {
   removeInlinePopup();
+
+  // Build bookmarks page URL while context is still valid
+  const bookmarksUrl = isContextValid()
+    ? chrome.runtime.getURL('bookmarks/index.html')
+    : '';
 
   const host = document.createElement('div');
   host.id = HOST_ID;
   const shadow = host.attachShadow({ mode: 'open' });
-  shadow.innerHTML = buildHTML();
+  shadow.innerHTML = buildHTML(bookmarksUrl);
   document.documentElement.appendChild(host);
 
   // ── element refs ──
@@ -322,7 +343,6 @@ export function showInlinePopup(params: InlinePopupParams): void {
   const charCount   = shadow.getElementById('charCount')   as HTMLSpanElement;
   const skipBtn     = shadow.getElementById('skipBtn')     as HTMLButtonElement;
   const saveBtn     = shadow.getElementById('saveBtn')     as HTMLButtonElement;
-  const bkmkLink    = shadow.getElementById('bookmarksLink') as HTMLButtonElement;
   const intentOpts  = shadow.querySelectorAll<HTMLElement>('.intent-option');
 
   let selectedIntent: string | null = null;
@@ -347,29 +367,30 @@ export function showInlinePopup(params: InlinePopupParams): void {
     });
   });
 
-  // ── skip ── delegate to background (content scripts cannot call chrome.bookmarks)
+  // ── bookmarks link cleanup ──
+  const bkmkLink = shadow.getElementById('bookmarksLink') as HTMLAnchorElement;
+  bkmkLink.addEventListener('click', () => {
+    // defer so the anchor's native navigation fires before popup removal
+    setTimeout(() => removeInlinePopup(), 100);
+  });
+
+  // ── skip ──
   skipBtn.addEventListener('click', () => {
     removeInlinePopup();
-    chrome.runtime.sendMessage({
+    sendSafe({
       type: 'INLINE_SKIP',
       payload: { title: params.title, url: params.url, parentId: params.parentId },
-    }).catch(() => { /* quiet */ });
+    });
   });
 
   // ── save ──
   saveBtn.addEventListener('click', () => {
     removeInlinePopup();
     const note = noteInput.value.trim();
-    chrome.runtime.sendMessage({
+    sendSafe({
       type: 'INLINE_SAVE',
       payload: { title: params.title, url: params.url, parentId: params.parentId, note, intent: selectedIntent },
-    }).catch(() => { /* quiet */ });
-  });
-
-  // ── bookmarks link ──
-  bkmkLink.addEventListener('click', () => {
-    removeInlinePopup();
-    chrome.runtime.sendMessage({ type: 'OPEN_BOOKMARKS_PAGE' }).catch(() => { /* quiet */ });
+    });
   });
 
   // ── escape key — true cancel, no bookmark created ──
@@ -392,6 +413,15 @@ export function showInlinePopup(params: InlinePopupParams): void {
   };
   // defer so the click that triggered showInlinePopup doesn't immediately close it
   setTimeout(() => document.addEventListener('click', onOutsideClick, true), 200);
+
+  // Pre-fill summary if available
+  if (params.summary) {
+    noteInput.value = params.summary;
+    const len = params.summary.length;
+    charCount.textContent = String(len);
+    if (len >= 50) charCount.className = 'full';
+    else if (len >= 40) charCount.className = 'warn';
+  }
 
   // focus textarea
   noteInput.focus();

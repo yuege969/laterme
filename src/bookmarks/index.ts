@@ -24,7 +24,7 @@ async function loadData(): Promise<void> {
   ]);
 
   const metas = (metasResult?.metas || []) as BookmarkMeta[];
-  const metaMap = new Map(metas.map((m) => [m.url, m]));
+  const metaMap = new Map(metas.map((m) => [m.bookmarkId, m]));
 
   // Flatten bookmark tree
   const flat: chrome.bookmarks.BookmarkTreeNode[] = [];
@@ -38,7 +38,7 @@ async function loadData(): Promise<void> {
 
   allItems = flat.map((bm) => ({
     bookmark: bm,
-    meta: bm.url ? (metaMap.get(bm.url) || null) : null,
+    meta: bm.id ? (metaMap.get(bm.id) || null) : null,
   }));
 
   document.getElementById('bookmarkCount')!.textContent = `${allItems.length} 个书签`;
@@ -114,6 +114,7 @@ function render(): void {
   list.innerHTML = items
     .map(({ bookmark, meta }) => {
       const bmUrl = bookmark.url || '';
+      const bookmarkId = bookmark.id || '';
       const hasNote = meta && meta.note;
       const daysAgo = meta
         ? Math.floor((Date.now() - meta.createdAt) / (1000 * 60 * 60 * 24))
@@ -122,7 +123,7 @@ function render(): void {
       let noteHtml = '';
       if (hasNote) {
         noteHtml = `
-          <div class="bookmark-note" data-url="${escapeHtml(bmUrl)}">
+          <div class="bookmark-note" data-bookmark-id="${escapeHtml(bookmarkId)}">
             <span class="note-icon">💬</span>
             <span class="note-text">"${escapeHtml(meta!.note)}"</span>
           </div>
@@ -134,14 +135,14 @@ function render(): void {
           </div>`;
       } else {
         noteHtml = `
-          <div class="bookmark-note" data-url="${escapeHtml(bmUrl)}">
+          <div class="bookmark-note" data-bookmark-id="${escapeHtml(bookmarkId)}" data-url="${escapeHtml(bmUrl)}">
             <span class="note-icon">💬</span>
             <span class="note-text-empty">点击添加备注</span>
           </div>`;
       }
 
       return `
-        <div class="bookmark-item" data-url="${escapeHtml(bmUrl)}">
+        <div class="bookmark-item" data-bookmark-id="${escapeHtml(bookmarkId)}">
           <div class="bookmark-item-row">
             <img class="bookmark-favicon" src="${getFaviconUrl(bmUrl)}" onerror="this.style.display='none'" />
             <span class="bookmark-title">${escapeHtml(bookmark.title)}</span>
@@ -155,9 +156,9 @@ function render(): void {
   // Bind click handlers
   list.querySelectorAll('.bookmark-item').forEach((el) => {
     el.addEventListener('click', (e) => {
-      const url = (el as HTMLElement).dataset.url;
-      if (url) {
-        runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { url } });
+      const bookmarkId = (el as HTMLElement).dataset.bookmarkId;
+      if (bookmarkId) {
+        runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId } });
       }
     });
   });
@@ -165,15 +166,16 @@ function render(): void {
   list.querySelectorAll('.bookmark-note').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      const bookmarkId = (el as HTMLElement).dataset.bookmarkId;
       const url = (el as HTMLElement).dataset.url;
-      if (!url) return;
-      const meta = allItems.find((i) => i.bookmark.url === url)?.meta;
+      if (!bookmarkId) return;
+      const meta = allItems.find((i) => i.bookmark.id === bookmarkId)?.meta;
       if (meta?.note) {
         const newNote = prompt('修改备注（最多50字）：', meta.note);
         if (newNote !== null) {
           runtime.sendMessage({
             type: 'UPDATE_META',
-            payload: { url, note: newNote.trim().substring(0, 50) },
+            payload: { bookmarkId, note: newNote.trim().substring(0, 50) },
           }).then(() => loadData());
         }
       } else {
@@ -182,7 +184,8 @@ function render(): void {
           runtime.sendMessage({
             type: 'SAVE_BOOKMARK_META',
             payload: {
-              url,
+              bookmarkId,
+              url: url || '',
               note: note.trim().substring(0, 50),
               intent: null,
             },
@@ -225,3 +228,157 @@ document.getElementById('openNative')?.addEventListener('click', (e) => {
 
 // Init
 loadData();
+
+// ── Review Mode ────────────────────────────────────────────────────────────────
+
+interface ReviewCandidate {
+  bookmark: chrome.bookmarks.BookmarkTreeNode;
+  meta: BookmarkMeta;
+}
+
+let reviewCandidates: ReviewCandidate[] = [];
+let reviewIndex = 0;
+let reviewStats = { kept: 0, archived: 0, deleted: 0 };
+
+function getReviewCandidates(): ReviewCandidate[] {
+  return allItems
+    .filter((item) => {
+      if (!item.meta) return false;
+      if (!item.meta.note) return false;
+      if (item.meta.status !== 'active') return false;
+      return true;
+    })
+    .sort((a, b) => a.meta!.createdAt - b.meta!.createdAt)
+    .map((item) => ({
+      bookmark: item.bookmark,
+      meta: item.meta!,
+    }));
+}
+
+function openReviewMode(): void {
+  reviewCandidates = getReviewCandidates();
+  if (reviewCandidates.length === 0) {
+    alert('没有需要复盘的书签。\n只有已添加备注且状态为活跃的书签才会出现在这里。');
+    return;
+  }
+  reviewIndex = 0;
+  reviewStats = { kept: 0, archived: 0, deleted: 0 };
+  document.getElementById('reviewMode')!.classList.remove('hidden');
+  document.getElementById('reviewComplete')!.classList.add('hidden');
+  document.querySelector('.review-overlay')!.classList.remove('hidden');
+  showReviewCard();
+  document.addEventListener('keydown', onReviewKeydown);
+}
+
+function closeReviewMode(): void {
+  document.getElementById('reviewMode')!.classList.add('hidden');
+  document.removeEventListener('keydown', onReviewKeydown);
+  loadData();
+}
+
+function showReviewCard(): void {
+  if (reviewIndex >= reviewCandidates.length) {
+    showReviewComplete();
+    return;
+  }
+
+  const candidate = reviewCandidates[reviewIndex];
+  const { bookmark, meta } = candidate;
+  const bmUrl = bookmark.url || '';
+  const daysAgo = Math.floor((Date.now() - meta.createdAt) / (1000 * 60 * 60 * 24));
+  const lastOpenDays = meta.openCount > 0
+    ? `${Math.floor((Date.now() - meta.lastOpenedAt) / (1000 * 60 * 60 * 24))} 天前打开过`
+    : '从未打开';
+  const total = reviewCandidates.length;
+  const progress = Math.round((reviewIndex / total) * 100);
+
+  document.getElementById('reviewProgress')!.style.width = `${progress}%`;
+  document.getElementById('reviewProgressText')!.textContent = `已处理 ${reviewIndex}/${total}`;
+
+  // Resolve intent label
+  const intentLabels: Record<string, string> = {
+    project: '项目参考',
+    learn: '学习中',
+    problem: '解决问题',
+    temp: '临时查看',
+  };
+
+  document.getElementById('reviewCardBody')!.innerHTML = `
+    <div class="review-card-title">
+      <img class="review-card-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(bmUrl).hostname)}&sz=32" onerror="this.style.display='none'" />
+      ${escapeHtml(bookmark.title)}
+    </div>
+    <div class="review-card-url">${escapeHtml(bmUrl)}</div>
+    <div class="review-card-note">
+      <div class="review-card-note-text">💬 "${escapeHtml(meta.note)}"</div>
+    </div>
+    <div class="review-card-meta">
+      <span class="review-meta-tag old">📅 ${daysAgo} 天前收藏</span>
+      ${meta.openCount === 0
+        ? '<span class="review-meta-tag old">⚠️ 从未打开</span>'
+        : `<span class="review-meta-tag">👁 ${meta.openCount} 次访问 · ${lastOpenDays}</span>`}
+      ${meta.intent ? `<span class="review-meta-tag ${meta.intent === 'temp' ? 'warn' : ''}">${intentLabels[meta.intent] || meta.intent}</span>` : ''}
+    </div>
+  `;
+}
+
+async function reviewAction(action: 'keep' | 'archive' | 'delete'): Promise<void> {
+  if (reviewIndex >= reviewCandidates.length) return;
+  const candidate = reviewCandidates[reviewIndex];
+  const { bookmarkId } = candidate.meta;
+
+  switch (action) {
+    case 'keep':
+      reviewStats.kept++;
+      break;
+    case 'archive':
+      reviewStats.archived++;
+      await runtime.sendMessage({
+        type: 'UPDATE_META',
+        payload: { bookmarkId, status: 'archived' },
+      });
+      break;
+    case 'delete':
+      reviewStats.deleted++;
+      await runtime.sendMessage({
+        type: 'DELETE_BOOKMARK',
+        payload: { bookmarkId },
+      });
+      break;
+  }
+
+  reviewIndex++;
+  showReviewCard();
+}
+
+function showReviewComplete(): void {
+  document.querySelector('.review-overlay')!.classList.add('hidden');
+  document.getElementById('reviewComplete')!.classList.remove('hidden');
+  document.getElementById('reviewStats')!.innerHTML = `
+    保留了 ${reviewStats.kept} 个，归档了 ${reviewStats.archived} 个，删除了 ${reviewStats.deleted} 个
+  `;
+  document.removeEventListener('keydown', onReviewKeydown);
+}
+
+function onReviewKeydown(e: KeyboardEvent): void {
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    reviewAction('keep');
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    reviewAction('archive');
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    reviewAction('delete');
+  } else if (e.key === 'Escape') {
+    closeReviewMode();
+  }
+}
+
+// Event bindings
+document.getElementById('reviewBtn')?.addEventListener('click', openReviewMode);
+document.getElementById('reviewExit')?.addEventListener('click', closeReviewMode);
+document.getElementById('reviewBack')?.addEventListener('click', closeReviewMode);
+document.getElementById('reviewKeep')?.addEventListener('click', () => reviewAction('keep'));
+document.getElementById('reviewArchive')?.addEventListener('click', () => reviewAction('archive'));
+document.getElementById('reviewDelete')?.addEventListener('click', () => reviewAction('delete'));
