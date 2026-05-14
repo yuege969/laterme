@@ -2,62 +2,62 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=360, initial-scale=1.0" />
+  <meta name="viewport" content="width=380, initial-scale=1.0" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="popup-container">
-    <div class="popup-header">
-      <h1 class="popup-title">留一句话给未来的自己</h1>
+    <div class="page-info">
+      <img class="page-favicon" id="pageFavicon" src="" alt="" />
+      <span class="page-title" id="pageTitle"></span>
     </div>
 
-    <div class="popup-body">
-      <div class="input-wrapper">
-        <textarea
-          id="noteInput"
-          class="note-input"
-          placeholder="比如：下次做 4G 热插拔时参考..."
-          maxlength="50"
-          rows="2"
-        ></textarea>
-        <div class="char-count">
-          <span id="charCount">0</span>/50 字
-        </div>
-      </div>
-
-      <div class="intent-group" id="intentGroup">
-        <label class="intent-label">这个收藏是想做什么用？</label>
-        <div class="intent-options">
-          <label class="intent-option" data-intent="project">
-            <input type="radio" name="intent" value="project" />
-            <span class="intent-radio"></span>
-            <span class="intent-text">以后做项目时参考</span>
-          </label>
-          <label class="intent-option" data-intent="learn">
-            <input type="radio" name="intent" value="learn" />
-            <span class="intent-radio"></span>
-            <span class="intent-text">学习时再看</span>
-          </label>
-          <label class="intent-option" data-intent="problem">
-            <input type="radio" name="intent" value="problem" />
-            <span class="intent-radio"></span>
-            <span class="intent-text">解决特定问题时用</span>
-          </label>
-          <label class="intent-option" data-intent="temp">
-            <input type="radio" name="intent" value="temp" />
-            <span class="intent-radio"></span>
-            <span class="intent-text">临时查看（3天后过期）</span>
-          </label>
-        </div>
+    <div class="note-section">
+      <textarea
+        id="noteInput"
+        class="note-input"
+        placeholder="给未来的自己留句话..."
+        maxlength="50"
+        rows="2"
+      ></textarea>
+      <div class="char-row">
+        <span class="char-hint">方便以后想起为什么要收藏</span>
+        <span class="char-count"><span id="charCount">0</span>/50</span>
       </div>
     </div>
 
-    <div class="popup-footer">
-      <a id="bookmarksLink" class="footer-link" href="#">📌 查看所有书签</a>
-      <div class="footer-actions">
-        <button id="skipBtn" class="btn btn-ghost">跳过</button>
-        <button id="saveBtn" class="btn btn-primary">保存</button>
+    <div class="intent-section">
+      <div class="intent-label">分类（可选）</div>
+      <div class="intent-options">
+        <label class="intent-option" data-intent="project">
+          <input type="radio" name="intent" value="project" />
+          <span class="intent-emoji">🛠</span>
+          <span>项目参考</span>
+        </label>
+        <label class="intent-option" data-intent="learn">
+          <input type="radio" name="intent" value="learn" />
+          <span class="intent-emoji">📖</span>
+          <span>学习中</span>
+        </label>
+        <label class="intent-option" data-intent="problem">
+          <input type="radio" name="intent" value="problem" />
+          <span class="intent-emoji">🔧</span>
+          <span>解决问题</span>
+        </label>
+        <label class="intent-option" data-intent="temp">
+          <input type="radio" name="intent" value="temp" />
+          <span class="intent-emoji">⏳</span>
+          <span>临时查看</span>
+        </label>
       </div>
+    </div>
+
+    <div class="footer">
+      <a id="bookmarksLink" class="footer-link" href="#">所有书签</a>
+      <button id="saveBtn" class="btn-save">保存</button>
+    </div>
+    <div class="key-hint">
+      <kbd>Enter</kbd> 保存 &nbsp; <kbd>Esc</kbd> 取消
     </div>
   </div>
 

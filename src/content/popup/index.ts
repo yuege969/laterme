@@ -8,14 +8,12 @@ interface PopupParams {
 }
 
 async function getPopupParams(): Promise<PopupParams | null> {
-  // First check URL params (opened via Ctrl+D interception or star icon)
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   const title = params.get('title');
   const parentId = params.get('parentId') || undefined;
   if (url) return { url, title: title || url, parentId };
 
-  // Opened via toolbar icon — query active tab
   try {
     const tabs = await api.tabs.query({ active: true, currentWindow: true });
     if (tabs[0]?.url) {
@@ -30,16 +28,16 @@ async function getPopupParams(): Promise<PopupParams | null> {
 
 let popupParams: PopupParams | null = null;
 
-// Async init
 async function initParams(): Promise<void> {
   popupParams = await getPopupParams();
 }
 
 const noteInput = document.getElementById('noteInput') as HTMLTextAreaElement;
 const charCount = document.getElementById('charCount') as HTMLSpanElement;
-const skipBtn = document.getElementById('skipBtn') as HTMLButtonElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
-const intentOptions = document.querySelectorAll('.intent-option');
+const pageTitle = document.getElementById('pageTitle') as HTMLSpanElement;
+const pageFavicon = document.getElementById('pageFavicon') as HTMLImageElement;
+const intentOptions = document.querySelectorAll<HTMLElement>('.intent-option');
 
 let selectedIntent: IntentType = null;
 
@@ -63,30 +61,18 @@ intentOptions.forEach((option) => {
   });
 });
 
+function getFaviconUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=32`;
+  } catch {
+    return '';
+  }
+}
+
 const POPUP_FLAG = 'laterme_popup_created';
 
-// Skip: just create native bookmark, no meta
-skipBtn.addEventListener('click', async () => {
-  if (!popupParams) {
-    window.close();
-    return;
-  }
-
-  // Set flag so background knows to skip intercepting this creation
-  await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
-
-  try {
-    const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
-    if (popupParams.parentId) createArg.parentId = popupParams.parentId;
-    await api.bookmarks.create(createArg);
-  } catch {
-    // Bookmark might already exist
-  }
-
-  window.close();
-});
-
-// Save: create bookmark + meta
+// Save: create bookmark + meta (note and intent are optional)
 saveBtn.addEventListener('click', async () => {
   if (!popupParams) {
     window.close();
@@ -95,18 +81,15 @@ saveBtn.addEventListener('click', async () => {
 
   const note = noteInput.value.trim();
 
-  // Set flag so background knows to skip the "add note" chip
   await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
 
   let bookmarkId: string | undefined;
   try {
-    // Create native bookmark, preserving original folder if intercepted from star icon
     const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
     if (popupParams.parentId) createArg.parentId = popupParams.parentId;
     const bookmark = await api.bookmarks.create(createArg);
     bookmarkId = bookmark.id;
   } catch {
-    // Bookmark might already exist — try to find it
     try {
       const existing = await api.bookmarks.search({ url: popupParams.url });
       if (existing.length > 0) {
@@ -118,7 +101,6 @@ saveBtn.addEventListener('click', async () => {
     }
   }
 
-  // Save meta via background
   if (bookmarkId) {
     try {
       await runtime.sendMessage({
@@ -126,6 +108,7 @@ saveBtn.addEventListener('click', async () => {
         payload: {
           bookmarkId,
           url: popupParams.url,
+          title: popupParams.title,
           note,
           intent: selectedIntent,
         },
@@ -138,14 +121,17 @@ saveBtn.addEventListener('click', async () => {
   window.close();
 });
 
-// Handle Escape key
+// Escape -- cancel
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    skipBtn.click();
+    window.close();
+  }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    saveBtn.click();
   }
 });
 
-// Init params then focus
 // Open bookmarks page
 document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
   e.preventDefault();
@@ -154,6 +140,16 @@ document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
   window.close();
 });
 
+// Init params then setup page info
 initParams().then(() => {
+  if (popupParams) {
+    pageTitle.textContent = popupParams.title || popupParams.url;
+    const favUrl = getFaviconUrl(popupParams.url);
+    if (favUrl) {
+      pageFavicon.src = favUrl;
+    } else {
+      pageFavicon.style.display = 'none';
+    }
+  }
   noteInput.focus();
 });

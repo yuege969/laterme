@@ -8,6 +8,7 @@ import {
   updateMeta,
   deleteMeta,
   getAllMetas,
+  bulkPutMetas,
   addResurfacingLog,
   wasShownToday,
   getSettings,
@@ -16,6 +17,36 @@ import {
   importData,
 } from '../storage/db';
 import type { BookmarkMeta } from '../storage/types';
+
+async function importExistingBookmarks(): Promise<number> {
+  const tree = await chrome.bookmarks.getTree();
+  const existingMetas = await getAllMetas();
+  const existingIds = new Set(existingMetas.map((m) => m.bookmarkId));
+
+  const newMetas: BookmarkMeta[] = [];
+  function walk(nodes: chrome.bookmarks.BookmarkTreeNode[]): void {
+    for (const node of nodes) {
+      if (node.url && !existingIds.has(node.id)) {
+        newMetas.push({
+          bookmarkId: node.id,
+          url: node.url,
+          title: node.title || node.url,
+          note: '',
+          intent: null,
+          createdAt: node.dateAdded || Date.now(),
+          lastOpenedAt: node.dateAdded || Date.now(),
+          openCount: 0,
+          status: 'active',
+        });
+      }
+      if (node.children) walk(node.children);
+    }
+  }
+  walk(tree);
+
+  await bulkPutMetas(newMetas);
+  return newMetas.length;
+}
 
 // Init listeners every time the service worker starts (handles restarts too)
 initBookmarkListeners();
@@ -64,8 +95,17 @@ chrome.action.onClicked.addListener(async (tab) => {
   openPopupWindow(popupUrl);
 });
 
-// On first install, do an initial resurfacing check
-runtime.onInstalled.addListener(async () => {
+// On install/update, import existing bookmarks if needed and do an initial resurfacing check
+runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === 'install' || details.reason === 'update') {
+    const existingMetas = await getAllMetas();
+    if (existingMetas.length === 0) {
+      const count = await importExistingBookmarks();
+      if (count > 0) {
+        console.log(`LaterMe: imported ${count} existing bookmarks`);
+      }
+    }
+  }
   await checkAndNotifyResurfacing();
 });
 
@@ -75,10 +115,11 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   switch (msg.type) {
     case 'SAVE_BOOKMARK_META': {
-      const payload = msg.payload as { bookmarkId: string; url: string; note: string; intent: BookmarkMeta['intent'] };
+      const payload = msg.payload as { bookmarkId: string; url: string; title: string; note: string; intent: BookmarkMeta['intent'] };
       putMeta({
         bookmarkId: payload.bookmarkId,
         url: payload.url,
+        title: payload.title || '',
         note: payload.note,
         intent: payload.intent,
         createdAt: Date.now(),
@@ -199,6 +240,7 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         await putMeta({
           bookmarkId: bookmark.id,
           url,
+          title,
           note,
           intent,
           createdAt: Date.now(),
@@ -228,6 +270,7 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         await putMeta({
           bookmarkId: bookmark.id,
           url: payload.url,
+          title: payload.title,
           note: payload.note,
           intent: payload.intent,
           createdAt: Date.now(),
@@ -237,6 +280,13 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         sendResponse({ success: true });
       })();
+      return true;
+    }
+
+    case 'IMPORT_BOOKMARKS': {
+      importExistingBookmarks()
+        .then((count) => sendResponse({ count }))
+        .catch((err) => sendResponse({ error: (err as Error).message }));
       return true;
     }
 

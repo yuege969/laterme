@@ -67,11 +67,19 @@ function showBanner(score: ResurfacingScore): void {
   );
 
   let daysText: string;
-  if (ageDays >= 180) daysText = '半年前的你，给现在的你留了一句话';
-  else if (ageDays >= 90) daysText = '3个月前的你，给现在的你留了一句话';
-  else if (ageDays >= 60) daysText = '2个月前的你，给现在的你留了一句话';
-  else if (ageDays >= 30) daysText = '1个月前的你，给现在的你留了一句话';
-  else daysText = '以前的你，给现在的你留了一句话';
+  if (score.note) {
+    if (ageDays >= 180) daysText = '半年前的你，给现在的你留了一句话';
+    else if (ageDays >= 90) daysText = '3个月前的你，给现在的你留了一句话';
+    else if (ageDays >= 60) daysText = '2个月前的你，给现在的你留了一句话';
+    else if (ageDays >= 30) daysText = '1个月前的你，给现在的你留了一句话';
+    else daysText = '以前的你，给现在的你留了一句话';
+  } else {
+    if (ageDays >= 180) daysText = '这个收藏已经沉睡了半年';
+    else if (ageDays >= 90) daysText = '这个收藏已经沉睡了 3 个月';
+    else if (ageDays >= 60) daysText = '这个收藏已经沉睡了 2 个月';
+    else if (ageDays >= 30) daysText = '这个收藏已经沉睡了 1 个月';
+    else daysText = '以前收藏的页面，还记得吗？';
+  }
 
   const banner = document.createElement('div');
   banner.id = BANNER_ID;
@@ -85,7 +93,7 @@ function showBanner(score: ResurfacingScore): void {
         </div>
         <div class="laterme-banner-body">
           <div class="laterme-banner-title">${escapeHtml(score.title || score.url)}</div>
-          <div class="laterme-banner-note">💬 "${escapeHtml(score.note)}"</div>
+          <div class="laterme-banner-note">${score.note ? `💬 "${escapeHtml(score.note)}"` : '这个收藏还没有备注'}</div>
         </div>
       </div>
       <div class="laterme-banner-actions">

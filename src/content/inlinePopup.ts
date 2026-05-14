@@ -1,6 +1,4 @@
 // Inline popup injected directly into the page via Shadow DOM.
-// Replaces the separate chrome.windows.create approach so the UI feels
-// native and stays within the current tab.
 
 export interface InlinePopupParams {
   url: string;
@@ -11,88 +9,97 @@ export interface InlinePopupParams {
 
 const HOST_ID = 'laterme-inline-popup-host';
 
-// ── Styles (scoped to shadow root) ───────────────────────────────────────────
+// -- Styles (scoped to shadow root) -------------------------------------------
 const CSS = `
 :host {
   all: initial;
   position: fixed;
-  top: 70px;
-  right: 16px;
+  inset: 0;
   z-index: 2147483647;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.popup-container {
-  width: 360px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
-  border: 1px solid #e5e7eb;
-  font-size: 14px;
-  color: #374151;
-  overflow: hidden;
-  animation: laterme-in 0.18s ease-out;
-}
-
-@keyframes laterme-in {
-  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
-}
-
-/* Arrow pointing up toward the star icon */
-.popup-container::before {
-  content: '';
+/* Backdrop */
+.overlay {
   position: absolute;
-  top: -8px;
-  right: 28px;
-  width: 14px;
-  height: 14px;
-  background: #fff;
-  border-left: 1px solid #e5e7eb;
-  border-top: 1px solid #e5e7eb;
-  transform: rotate(45deg);
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  animation: fadeIn 0.15s ease-out;
 }
 
-*,
-*::before,
-*::after {
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Card */
+.card {
+  position: relative;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05);
+  animation: cardIn 0.22s cubic-bezier(0.16,1,0.3,1);
+  overflow: hidden;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-.popup-header {
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid #f3f4f6;
+/* Page info */
+.page-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 14px;
 }
 
-.popup-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #4f46e5;
+.page-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
-.popup-body {
-  padding: 14px 20px;
+.page-title {
+  font-size: 13px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 
-.input-wrapper {
-  margin-bottom: 12px;
+/* Note input */
+.note-section {
+  padding: 0 20px 14px;
 }
 
 .note-input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 12px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 15px;
   font-family: inherit;
-  color: #374151;
+  color: #1f2937;
   background: #f9fafb;
   resize: none;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.5;
 }
 
 .note-input:focus {
@@ -102,208 +109,200 @@ const CSS = `
 }
 
 .note-input::placeholder {
-  color: #9ca3af;
+  color: #c4c4c4;
+}
+
+.char-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.char-hint {
+  font-size: 11px;
+  color: #d1d5db;
 }
 
 .char-count {
-  text-align: right;
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 4px;
+  font-size: 11px;
+  color: #c4c4c4;
 }
 .char-count.warn { color: #f59e0b; }
 .char-count.full { color: #ef4444; }
 
+/* Intent pills */
+.intent-section {
+  padding: 0 20px 4px;
+}
+
 .intent-label {
-  display: block;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
-  color: #6b7280;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 
 .intent-options {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .intent-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 20px;
   cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1.5px solid transparent;
   transition: all 0.15s;
-  background: #fff;
+  user-select: none;
 }
 
 .intent-option:hover {
-  border-color: #c7d2fe;
-  background: #f5f3ff;
+  background: #e5e7eb;
+  color: #374151;
 }
 
 .intent-option.selected {
-  border-color: #4f46e5;
   background: #eef2ff;
+  color: #4f46e5;
+  border-color: #4f46e5;
 }
 
 .intent-option input[type="radio"] {
   display: none;
 }
 
-.intent-radio {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid #d1d5db;
-  flex-shrink: 0;
-  position: relative;
-  transition: all 0.15s;
-}
-
-.intent-option.selected .intent-radio {
-  border-color: #4f46e5;
-  background: #4f46e5;
-}
-
-.intent-option.selected .intent-radio::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-}
-
-.intent-text {
+.intent-emoji {
   font-size: 13px;
-  color: #374151;
+  line-height: 1;
 }
 
-.popup-footer {
+/* Footer */
+.footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
   padding: 10px 20px;
   border-top: 1px solid #f3f4f6;
-  background: #f9fafb;
+  margin-top: 12px;
 }
 
 .footer-link {
   font-size: 12px;
   color: #9ca3af;
   text-decoration: none;
-  white-space: nowrap;
   cursor: pointer;
   background: none;
   border: none;
   font-family: inherit;
   padding: 0;
+  transition: color 0.15s;
 }
+.footer-link:hover { color: #4f46e5; }
 
-.footer-link:hover {
-  color: #4f46e5;
-}
-
-.footer-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn {
-  padding: 7px 18px;
+.btn-save {
+  padding: 8px 24px;
   border: none;
   border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: #6b7280;
-}
-
-.btn-ghost:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btn-primary {
   background: #4f46e5;
   color: #fff;
+  transition: all 0.15s;
 }
+.btn-save:hover  { background: #4338ca; }
+.btn-save:active { background: #3730a3; transform: scale(0.98); }
 
-.btn-primary:hover  { background: #4338ca; }
-.btn-primary:active { background: #3730a3; }
+.key-hint {
+  font-size: 11px;
+  color: #d1d5db;
+  padding: 4px 20px 12px;
+}
+.key-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
+  color: #9ca3af;
+  background: #f3f4f6;
+  border-radius: 3px;
+  border: 1px solid #e5e7eb;
+  margin: 0 2px;
+}
 `;
 
-// ── HTML template ─────────────────────────────────────────────────────────────
-function buildHTML(bookmarksUrl: string): string {
+// -- HTML template -----------------------------------------------------------
+function buildHTML(): string {
   return `
     <style>${CSS}</style>
-    <div class="popup-container" id="laterme-popup">
-      <div class="popup-header">
-        <h1 class="popup-title">留一句话给未来的自己</h1>
+    <div class="overlay" id="laterme-overlay"></div>
+    <div class="card" id="laterme-card">
+      <div class="page-info">
+        <img class="page-favicon" id="pageFavicon" src="" alt="" />
+        <span class="page-title" id="pageTitle"></span>
       </div>
-      <div class="popup-body">
-        <div class="input-wrapper">
-          <textarea
-            id="noteInput"
-            class="note-input"
-            placeholder="比如：下次做 4G 热插拔时参考..."
-            maxlength="50"
-            rows="2"
-          ></textarea>
-          <div class="char-count"><span id="charCount">0</span>/50 字</div>
-        </div>
-        <div class="intent-group">
-          <label class="intent-label">这个收藏是想做什么用？</label>
-          <div class="intent-options">
-            <label class="intent-option" data-intent="project">
-              <input type="radio" name="intent" value="project" />
-              <span class="intent-radio"></span>
-              <span class="intent-text">以后做项目时参考</span>
-            </label>
-            <label class="intent-option" data-intent="learn">
-              <input type="radio" name="intent" value="learn" />
-              <span class="intent-radio"></span>
-              <span class="intent-text">学习时再看</span>
-            </label>
-            <label class="intent-option" data-intent="problem">
-              <input type="radio" name="intent" value="problem" />
-              <span class="intent-radio"></span>
-              <span class="intent-text">解决特定问题时用</span>
-            </label>
-            <label class="intent-option" data-intent="temp">
-              <input type="radio" name="intent" value="temp" />
-              <span class="intent-radio"></span>
-              <span class="intent-text">临时查看（3天后过期）</span>
-            </label>
-          </div>
+      <div class="note-section">
+        <textarea
+          id="noteInput"
+          class="note-input"
+          placeholder="给未来的自己留句话..."
+          maxlength="50"
+          rows="2"
+        ></textarea>
+        <div class="char-row">
+          <span class="char-hint">方便以后想起为什么要收藏</span>
+          <span class="char-count"><span id="charCount">0</span>/50</span>
         </div>
       </div>
-      <div class="popup-footer">
-        <a class="footer-link" id="bookmarksLink" href="${bookmarksUrl}" target="_blank">📌 查看所有书签</a>
-        <div class="footer-actions">
-          <button id="skipBtn" class="btn btn-ghost">跳过</button>
-          <button id="saveBtn" class="btn btn-primary">保存</button>
+      <div class="intent-section">
+        <div class="intent-label">分类（可选）</div>
+        <div class="intent-options">
+          <label class="intent-option" data-intent="project">
+            <input type="radio" name="intent" value="project" />
+            <span class="intent-emoji">🛠</span>
+            <span>项目参考</span>
+          </label>
+          <label class="intent-option" data-intent="learn">
+            <input type="radio" name="intent" value="learn" />
+            <span class="intent-emoji">📖</span>
+            <span>学习中</span>
+          </label>
+          <label class="intent-option" data-intent="problem">
+            <input type="radio" name="intent" value="problem" />
+            <span class="intent-emoji">🔧</span>
+            <span>解决问题</span>
+          </label>
+          <label class="intent-option" data-intent="temp">
+            <input type="radio" name="intent" value="temp" />
+            <span class="intent-emoji">⏳</span>
+            <span>临时查看</span>
+          </label>
         </div>
+      </div>
+      <div class="footer">
+        <a class="footer-link" id="bookmarksLink" href="#">所有书签</a>
+        <button id="saveBtn" class="btn-save">保存</button>
+      </div>
+      <div class="key-hint">
+        <kbd>Enter</kbd> 保存 &nbsp; <kbd>Esc</kbd> 取消
       </div>
     </div>
   `;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// -- Public API --------------------------------------------------------------
 
 export function removeInlinePopup(): void {
   document.getElementById(HOST_ID)?.remove();
@@ -324,30 +323,44 @@ function sendSafe(message: unknown): void {
   } catch { /* context invalidated */ }
 }
 
+function getFaviconUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=32`;
+  } catch {
+    return '';
+  }
+}
+
 export function showInlinePopup(params: InlinePopupParams): void {
   removeInlinePopup();
-
-  // Build bookmarks page URL while context is still valid
-  const bookmarksUrl = isContextValid()
-    ? chrome.runtime.getURL('bookmarks/index.html')
-    : '';
 
   const host = document.createElement('div');
   host.id = HOST_ID;
   const shadow = host.attachShadow({ mode: 'open' });
-  shadow.innerHTML = buildHTML(bookmarksUrl);
+  shadow.innerHTML = buildHTML();
   document.documentElement.appendChild(host);
 
-  // ── element refs ──
+  // -- element refs --
   const noteInput   = shadow.getElementById('noteInput')   as HTMLTextAreaElement;
   const charCount   = shadow.getElementById('charCount')   as HTMLSpanElement;
-  const skipBtn     = shadow.getElementById('skipBtn')     as HTMLButtonElement;
   const saveBtn     = shadow.getElementById('saveBtn')     as HTMLButtonElement;
+  const pageTitle   = shadow.getElementById('pageTitle')   as HTMLSpanElement;
+  const pageFavicon = shadow.getElementById('pageFavicon') as HTMLImageElement;
   const intentOpts  = shadow.querySelectorAll<HTMLElement>('.intent-option');
 
   let selectedIntent: string | null = null;
 
-  // char counter
+  // Page info
+  pageTitle.textContent = params.title || params.url;
+  const favUrl = getFaviconUrl(params.url);
+  if (favUrl) {
+    pageFavicon.src = favUrl;
+  } else {
+    pageFavicon.style.display = 'none';
+  }
+
+  // Char counter
   noteInput.addEventListener('input', () => {
     const len = noteInput.value.length;
     charCount.textContent = String(len);
@@ -356,7 +369,7 @@ export function showInlinePopup(params: InlinePopupParams): void {
     else if (len >= 40) charCount.className = 'warn';
   });
 
-  // intent selection
+  // Intent selection
   intentOpts.forEach((opt) => {
     opt.addEventListener('click', () => {
       intentOpts.forEach((o) => o.classList.remove('selected'));
@@ -367,23 +380,15 @@ export function showInlinePopup(params: InlinePopupParams): void {
     });
   });
 
-  // ── bookmarks link cleanup ──
+  // Bookmarks link
   const bkmkLink = shadow.getElementById('bookmarksLink') as HTMLAnchorElement;
-  bkmkLink.addEventListener('click', () => {
-    // defer so the anchor's native navigation fires before popup removal
-    setTimeout(() => removeInlinePopup(), 100);
-  });
-
-  // ── skip ──
-  skipBtn.addEventListener('click', () => {
+  bkmkLink.addEventListener('click', (e) => {
+    e.preventDefault();
     removeInlinePopup();
-    sendSafe({
-      type: 'INLINE_SKIP',
-      payload: { title: params.title, url: params.url, parentId: params.parentId },
-    });
+    sendSafe({ type: 'OPEN_BOOKMARKS_PAGE' });
   });
 
-  // ── save ──
+  // Save
   saveBtn.addEventListener('click', () => {
     removeInlinePopup();
     const note = noteInput.value.trim();
@@ -393,26 +398,28 @@ export function showInlinePopup(params: InlinePopupParams): void {
     });
   });
 
-  // ── escape key — true cancel, no bookmark created ──
+  // Dismiss -- cancel, no bookmark created
+  const dismiss = () => {
+    removeInlinePopup();
+  };
+
   const onKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
-      removeInlinePopup();
+      e.preventDefault();
+      dismiss();
       document.removeEventListener('keydown', onKeydown, true);
-      document.removeEventListener('click', onOutsideClick, true);
+    }
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      saveBtn.click();
+      document.removeEventListener('keydown', onKeydown, true);
     }
   };
   document.addEventListener('keydown', onKeydown, true);
 
-  // ── click outside — true cancel, no bookmark created ──
-  const onOutsideClick = (e: MouseEvent) => {
-    if (e.target !== host && !host.contains(e.target as Node)) {
-      removeInlinePopup();
-      document.removeEventListener('keydown', onKeydown, true);
-      document.removeEventListener('click', onOutsideClick, true);
-    }
-  };
-  // defer so the click that triggered showInlinePopup doesn't immediately close it
-  setTimeout(() => document.addEventListener('click', onOutsideClick, true), 200);
+  // Click overlay to dismiss
+  const overlay = shadow.getElementById('laterme-overlay')!;
+  overlay.addEventListener('click', () => dismiss());
 
   // Pre-fill summary if available
   if (params.summary) {
@@ -423,6 +430,5 @@ export function showInlinePopup(params: InlinePopupParams): void {
     else if (len >= 40) charCount.className = 'warn';
   }
 
-  // focus textarea
   noteInput.focus();
 }

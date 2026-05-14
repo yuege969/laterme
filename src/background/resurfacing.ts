@@ -53,10 +53,21 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
     action: 'ignored', // Will be updated when user acts
   });
 
-  // Try to show on any open new tab page
-  const newTabTabs = await tabs.query({
-    url: ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'],
-  });
+  // Try to show on any open new tab page.
+  // URL patterns are browser-specific and may throw on mismatched browsers.
+  let newTabTabs: chrome.tabs.Tab[] = [];
+  const patterns = ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'];
+  for (const pattern of patterns) {
+    try {
+      const matched = await tabs.query({ url: [pattern] });
+      if (matched.length > 0) {
+        newTabTabs = matched;
+        break;
+      }
+    } catch {
+      // This pattern is not valid in the current browser — skip it.
+    }
+  }
 
   if (newTabTabs.length > 0) {
     // Send message to content script on new tab

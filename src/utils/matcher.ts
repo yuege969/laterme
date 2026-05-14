@@ -40,6 +40,7 @@ export function calculateResurfacingScore(meta: BookmarkMeta): ResurfacingScore 
   return {
     bookmarkId: meta.bookmarkId,
     url: meta.url,
+    title: meta.title,
     note: meta.note,
     score: Math.round(score * 100) / 100,
     timeScore: Math.round(timeScore * 100) / 100,
@@ -52,7 +53,6 @@ export function calculateResurfacingScore(meta: BookmarkMeta): ResurfacingScore 
  * Filter bookmarks eligible for resurfacing:
  * - Status is 'active'
  * - Created more than 30 days ago
- * - Has a note
  * - Not snoozed (nextReminderAt is in the past or not set)
  * - Not opened today
  */
@@ -63,8 +63,6 @@ export function filterEligibleForResurfacing(metas: BookmarkMeta[]): BookmarkMet
 
   return metas.filter((meta) => {
     if (meta.status !== 'active') return false;
-    if (!meta.note || meta.note.trim() === '') return false;
-
     const ageDays = (now - meta.createdAt) / (1000 * 60 * 60 * 24);
     if (ageDays < 30) return false;
 

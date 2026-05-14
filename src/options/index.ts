@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from '../storage/types';
 const resurfacingEnabled = document.getElementById('resurfacingEnabled') as HTMLInputElement;
 const resurfacingFrequency = document.getElementById('resurfacingFrequency') as HTMLSelectElement;
 const maxAgeDays = document.getElementById('maxAgeDays') as HTMLSelectElement;
+const importBookmarksBtn = document.getElementById('importBookmarksBtn') as HTMLButtonElement;
 const exportBtn = document.getElementById('exportBtn') as HTMLButtonElement;
 const importBtn = document.getElementById('importBtn') as HTMLButtonElement;
 const importFile = document.getElementById('importFile') as HTMLInputElement;
@@ -88,6 +89,27 @@ resurfacingFrequency.addEventListener('change', () => {
 
 maxAgeDays.addEventListener('change', () => {
   saveSetting({ maxAgeDays: parseInt(maxAgeDays.value, 10) });
+});
+
+// Import browser bookmarks
+importBookmarksBtn.addEventListener('click', async () => {
+  importBookmarksBtn.disabled = true;
+  importBookmarksBtn.textContent = '导入中...';
+  try {
+    const response = await runtime.sendMessage({ type: 'IMPORT_BOOKMARKS' });
+    if (response?.error) {
+      showToast(`导入失败: ${response.error}`, 'error');
+    } else {
+      const count = (response?.count as number) || 0;
+      showToast(`已导入 ${count} 个浏览器书签`, 'success');
+      loadStats();
+    }
+  } catch {
+    showToast('导入失败，请重试', 'error');
+  } finally {
+    importBookmarksBtn.disabled = false;
+    importBookmarksBtn.innerHTML = '<span class="btn-icon">📥</span> 导入浏览器书签';
+  }
 });
 
 // Export

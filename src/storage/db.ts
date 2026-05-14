@@ -161,6 +161,19 @@ export async function saveSettings(
   });
 }
 
+export async function bulkPutMetas(metas: BookmarkMeta[]): Promise<void> {
+  if (metas.length === 0) return;
+  const db = await openDB();
+  const tx = db.transaction(META_STORE, 'readwrite');
+  for (const meta of metas) {
+    tx.objectStore(META_STORE).put(meta);
+  }
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // Data export/import
 
 export async function exportData(): Promise<{

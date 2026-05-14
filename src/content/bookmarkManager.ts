@@ -118,9 +118,13 @@ async function showAddDialog(url: string): Promise<void> {
 
   // Find the Chrome bookmark ID for this URL
   let bookmarkId: string | undefined;
+  let bmTitle = '';
   try {
     const results = await chrome.bookmarks.search({ url });
-    if (results.length > 0) bookmarkId = results[0].id;
+    if (results.length > 0) {
+      bookmarkId = results[0].id;
+      bmTitle = results[0].title || '';
+    }
   } catch { /* quiet */ }
   if (!bookmarkId) return;
 
@@ -129,6 +133,7 @@ async function showAddDialog(url: string): Promise<void> {
     payload: {
       bookmarkId,
       url,
+      title: bmTitle,
       note: trimmed,
       intent: null,
     },
@@ -137,6 +142,7 @@ async function showAddDialog(url: string): Promise<void> {
   metasCache.set(url, {
     bookmarkId,
     url,
+    title: bmTitle,
     note: trimmed,
     intent: null,
     createdAt: Date.now(),

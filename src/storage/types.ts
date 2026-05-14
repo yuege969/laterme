@@ -5,6 +5,7 @@ export type BookmarkStatus = 'active' | 'archived' | 'expired';
 export interface BookmarkMeta {
   bookmarkId: string;
   url: string;
+  title: string;
   note: string;
   intent: IntentType;
   createdAt: number;
