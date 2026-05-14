@@ -133,6 +133,17 @@ function extensionBuilder(): Plugin {
           if (existsSync(src)) copyFileSync(src, resolve(destIconsDir, icon));
         }
       }
+
+      // Wrap content-script entry files in IIFE so top-level const/let don't
+      // collide when multiple content scripts share the same isolated world.
+      for (const cs of manifest.content_scripts || []) {
+        for (const js of cs.js) {
+          const fp = resolve(outDir, js);
+          if (existsSync(fp)) {
+            writeFileSync(fp, `(function(){${readFileSync(fp, 'utf-8')}\n})();\n`);
+          }
+        }
+      }
     },
   };
 }

@@ -12,9 +12,6 @@ import type { ResurfacingScore } from '../storage/types';
 const RESURFACING_ALARM = 'resurfacing-check';
 
 export function initResurfacingAlarm(): void {
-  // Schedule daily check at a random minute to avoid thundering herd
-  const randomMinute = Math.floor(Math.random() * 60);
-  const randomHour = Math.floor(Math.random() * 3) + 9; // 9-11 AM
   alarms.create(RESURFACING_ALARM, {
     periodInMinutes: 24 * 60,
     delayInMinutes: 1,
