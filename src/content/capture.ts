@@ -32,7 +32,7 @@ if (!_win.__laterme_capture) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const msg = message as {
       type: string;
-      payload?: { url: string; title: string; parentId?: string };
+      payload?: { url: string; title: string; parentId?: string; bookmarkId?: string };
     };
 
     if (msg.type === 'SHOW_INLINE_POPUP' && msg.payload) {

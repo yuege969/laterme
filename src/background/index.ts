@@ -231,17 +231,25 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'INLINE_SAVE': {
-      const { title, url, parentId, note, intent } = msg.payload as {
-        title: string; url: string; parentId?: string;
+      const { title, url, parentId, bookmarkId, note, intent } = msg.payload as {
+        title: string; url: string; parentId?: string; bookmarkId?: string;
         note: string; intent: BookmarkMeta['intent'];
       };
       (async () => {
         await chrome.storage.local.set({ laterme_popup_created: Date.now() });
-        const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
-        if (parentId) arg.parentId = parentId;
-        const bookmark = await chrome.bookmarks.create(arg);
+        let finalBookmarkId = bookmarkId;
+        if (finalBookmarkId) {
+          // Star-icon flow: bookmark already exists, update it
+          try { await chrome.bookmarks.update(finalBookmarkId, { title, url }); } catch { /* keep existing */ }
+        } else {
+          // Ctrl+D / toolbar flow: create a new bookmark
+          const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
+          if (parentId) arg.parentId = parentId;
+          const bookmark = await chrome.bookmarks.create(arg);
+          finalBookmarkId = bookmark.id;
+        }
         await putMeta({
-          bookmarkId: bookmark.id,
+          bookmarkId: finalBookmarkId,
           url,
           title,
           note,

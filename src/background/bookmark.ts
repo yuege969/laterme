@@ -18,11 +18,8 @@ export function initBookmarkListeners(): void {
       }
     } catch { /* quiet */ }
 
-    // Star-icon bookmark — remove it immediately so we own the lifecycle.
-    try {
-      await chrome.bookmarks.remove(id);
-    } catch { /* already removed */ }
-
+    // Star-icon bookmark — keep it (Chrome already created it).
+    // We'll attach meta after the user confirms via the inline popup.
     const url = bookmark.url;
     const title = bookmark.title || url;
     const parentId = bookmark.parentId || '';
@@ -36,7 +33,7 @@ export function initBookmarkListeners(): void {
 
     if (tabId) {
       // Show our inline popup
-      const popupPayload = { url, title, parentId };
+      const popupPayload = { url, title, parentId, bookmarkId: id };
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'SHOW_INLINE_POPUP',
@@ -67,7 +64,7 @@ export function initBookmarkListeners(): void {
 
     // Fallback: open as a separate popup window (e.g. on chrome:// pages)
     const popupUrl = chrome.runtime.getURL(
-      `content/popup/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&parentId=${encodeURIComponent(parentId)}`
+      `content/popup/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&parentId=${encodeURIComponent(parentId)}&bookmarkId=${encodeURIComponent(id)}`
     );
     openPopupWindow(popupUrl);
   });

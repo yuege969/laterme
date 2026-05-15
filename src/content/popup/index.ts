@@ -5,6 +5,7 @@ interface PopupParams {
   url: string;
   title: string;
   parentId?: string;
+  bookmarkId?: string;
   favIconUrl?: string;
 }
 
@@ -13,7 +14,8 @@ async function getPopupParams(): Promise<PopupParams | null> {
   const url = params.get('url');
   const title = params.get('title');
   const parentId = params.get('parentId') || undefined;
-  if (url) return { url, title: title || url, parentId };
+  const bookmarkId = params.get('bookmarkId') || undefined;
+  if (url) return { url, title: title || url, parentId, bookmarkId };
 
   try {
     const tabs = await api.tabs.query({ active: true, currentWindow: true });
@@ -73,7 +75,7 @@ function getFaviconUrl(params: PopupParams): string {
 
 const POPUP_FLAG = 'laterme_popup_created';
 
-// Save: create bookmark + meta (note and intent are optional)
+// Save: create or update bookmark + meta (note and intent are optional)
 saveBtn.addEventListener('click', async () => {
   if (!popupParams) {
     window.close();
@@ -84,21 +86,27 @@ saveBtn.addEventListener('click', async () => {
 
   await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
 
-  let bookmarkId: string | undefined;
-  try {
-    const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
-    if (popupParams.parentId) createArg.parentId = popupParams.parentId;
-    const bookmark = await api.bookmarks.create(createArg);
-    bookmarkId = bookmark.id;
-  } catch {
+  let bookmarkId: string | undefined = popupParams.bookmarkId;
+  if (bookmarkId) {
+    // Star-icon flow: bookmark already exists, update it
+    try { await api.bookmarks.update(bookmarkId, { title: popupParams.title, url: popupParams.url }); } catch { /* keep existing */ }
+  } else {
+    // Ctrl+D / toolbar flow: create a new bookmark
     try {
-      const existing = await api.bookmarks.search({ url: popupParams.url });
-      if (existing.length > 0) {
-        bookmarkId = existing[0].id;
-        await api.bookmarks.update(existing[0].id, { title: popupParams.title });
-      }
+      const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
+      if (popupParams.parentId) createArg.parentId = popupParams.parentId;
+      const bookmark = await api.bookmarks.create(createArg);
+      bookmarkId = bookmark.id;
     } catch {
-      // Can't create or update, still save meta
+      try {
+        const existing = await api.bookmarks.search({ url: popupParams.url });
+        if (existing.length > 0) {
+          bookmarkId = existing[0].id;
+          await api.bookmarks.update(existing[0].id, { title: popupParams.title });
+        }
+      } catch {
+        // Can't create or update, still save meta
+      }
     }
   }
 

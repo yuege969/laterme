@@ -4,6 +4,7 @@ export interface InlinePopupParams {
   url: string;
   title: string;
   parentId?: string;
+  bookmarkId?: string;
   summary?: string;
   favIconUrl?: string;
 }
@@ -397,7 +398,7 @@ export function showInlinePopup(params: InlinePopupParams): void {
     const note = noteInput.value.trim();
     sendSafe({
       type: 'INLINE_SAVE',
-      payload: { title: params.title, url: params.url, parentId: params.parentId, note, intent: selectedIntent },
+      payload: { title: params.title, url: params.url, parentId: params.parentId, bookmarkId: params.bookmarkId, note, intent: selectedIntent },
     });
   });
 
