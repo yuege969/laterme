@@ -49,13 +49,6 @@ export const tabs = {
   },
 };
 
-export const history = {
-  onVisited: {
-    addListener: (cb: (result: chrome.history.HistoryItem) => void) =>
-      api.history.onVisited.addListener(cb),
-  },
-};
-
 export const alarms = {
   create: (name: string, alarmInfo: chrome.alarms.AlarmCreateInfo) =>
     api.alarms.create(name, alarmInfo),

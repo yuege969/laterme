@@ -5,6 +5,7 @@ export interface InlinePopupParams {
   title: string;
   parentId?: string;
   summary?: string;
+  favIconUrl?: string;
 }
 
 const HOST_ID = 'laterme-inline-popup-host';
@@ -271,18 +272,8 @@ function buildHTML(): string {
         <div class="intent-options">
           <label class="intent-option" data-intent="project">
             <input type="radio" name="intent" value="project" />
-            <span class="intent-emoji">🛠</span>
-            <span>项目参考</span>
-          </label>
-          <label class="intent-option" data-intent="learn">
-            <input type="radio" name="intent" value="learn" />
-            <span class="intent-emoji">📖</span>
-            <span>学习中</span>
-          </label>
-          <label class="intent-option" data-intent="problem">
-            <input type="radio" name="intent" value="problem" />
-            <span class="intent-emoji">🔧</span>
-            <span>解决问题</span>
+            <span class="intent-emoji">�</span>
+            <span>长期保留</span>
           </label>
           <label class="intent-option" data-intent="temp">
             <input type="radio" name="intent" value="temp" />
@@ -323,10 +314,12 @@ function sendSafe(message: unknown): void {
   } catch { /* context invalidated */ }
 }
 
-function getFaviconUrl(url: string): string {
+function getFaviconUrl(params: InlinePopupParams): string {
+  // Prefer caller-supplied URL (extracted from page DOM, no external request).
+  if (params.favIconUrl) return params.favIconUrl;
+  // Fallback: /favicon.ico of the target site (one same-origin request).
   try {
-    const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=32`;
+    return `${new URL(params.url).origin}/favicon.ico`;
   } catch {
     return '';
   }
@@ -353,7 +346,7 @@ export function showInlinePopup(params: InlinePopupParams): void {
 
   // Page info
   pageTitle.textContent = params.title || params.url;
-  const favUrl = getFaviconUrl(params.url);
+  const favUrl = getFaviconUrl(params);
   if (favUrl) {
     pageFavicon.src = favUrl;
   } else {

@@ -5,7 +5,6 @@
   "description": "收藏时留一句话，让收藏夹重新活过来",
   "permissions": [
     "bookmarks",
-    "history",
     "storage",
     "alarms",
     "activeTab",
@@ -25,15 +24,11 @@
       "js": ["src/content/capture.ts"],
       "run_at": "document_start",
       "all_frames": false
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/resurface.ts"],
-      "css": ["src/styles/resurfacing.css"],
-      "run_at": "document_idle",
-      "all_frames": false
     }
   ],
+  "chrome_url_overrides": {
+    "newtab": "src/newtab/index.html"
+  },
   "commands": {},
   "action": {
     "default_title": "LaterMe - 收藏时留一句话",
@@ -52,6 +47,7 @@
       "resources": [
         "content/popup/*",
         "newtab/*",
+        "welcome/*",
         "bookmarks/*",
         "options/*",
         "styles/*",

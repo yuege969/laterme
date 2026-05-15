@@ -1,3 +1,16 @@
+export function extractFaviconUrl(): string {
+  // Prefer explicit favicon link tags, fall back to /favicon.ico
+  const link = document.querySelector<HTMLLinkElement>(
+    'link[rel~="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+  );
+  if (link?.href) return link.href;
+  try {
+    return `${new URL(window.location.href).origin}/favicon.ico`;
+  } catch {
+    return '';
+  }
+}
+
 export function extractPageSummary(): string {
   // 1. OpenGraph description
   const ogDesc = document.querySelector<HTMLMetaElement>('meta[property="og:description"]');

@@ -97,13 +97,16 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 // On install/update, import existing bookmarks if needed and do an initial resurfacing check
 runtime.onInstalled.addListener(async (details) => {
-  if (details.reason === 'install' || details.reason === 'update') {
+  if (details.reason === 'install') {
+    // First install: open welcome page and import existing bookmarks
+    chrome.tabs.create({ url: runtime.getURL('welcome/index.html') });
+    const count = await importExistingBookmarks();
+    if (count > 0) console.log(`LaterMe: imported ${count} existing bookmarks`);
+  } else if (details.reason === 'update') {
     const existingMetas = await getAllMetas();
     if (existingMetas.length === 0) {
       const count = await importExistingBookmarks();
-      if (count > 0) {
-        console.log(`LaterMe: imported ${count} existing bookmarks`);
-      }
+      if (count > 0) console.log(`LaterMe: imported ${count} existing bookmarks`);
     }
   }
   await checkAndNotifyResurfacing();

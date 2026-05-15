@@ -207,3 +207,46 @@ body {
 .resurfacing-btn-archive:hover {
   color: #ef4444;
 }
+
+/* Weekly batch mode */
+.resurfacing-batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.resurfacing-batch-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resurfacing-batch-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resurfacing-batch-note {
+  font-size: 12px;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resurfacing-batch-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}

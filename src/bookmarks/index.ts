@@ -111,9 +111,11 @@ function getNoteAgeClass(ts: number): string {
 }
 
 function getFaviconUrl(url: string): string {
+  // Use the browser's built-in favicon cache via the extension API.
+  // This avoids leaking URLs to third-party services.
   try {
-    const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=32`;
+    const pageUrl = encodeURIComponent(url);
+    return `chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${pageUrl}&size=32`;
   } catch {
     return '';
   }
@@ -158,7 +160,7 @@ function renderCard(bookmark: chrome.bookmarks.BookmarkTreeNode, meta: BookmarkM
   return `
     <div class="bm-card ${statusCls}" data-bm-id="${escapeHtml(bookmarkId)}">
       <div class="bm-main">
-        <img class="bm-favicon" src="${getFaviconUrl(bmUrl)}" onerror="this.style.display='none'" />
+        <img class="bm-favicon" src="${getFaviconUrl(bmUrl)}" data-fallback="hide" />
         <div class="bm-content">
           <div class="bm-title">${escapeHtml(bookmark.title)}</div>
           <div class="bm-url">${escapeHtml(bmUrl)}</div>
@@ -219,6 +221,11 @@ function render(): void {
       </div>`;
   }
   list.innerHTML = html;
+
+  // Bind fallback for broken favicons (CSP-safe alternative to onerror=)
+  list.querySelectorAll<HTMLImageElement>('img[data-fallback="hide"]').forEach((img) => {
+    img.addEventListener('error', () => { img.style.display = 'none'; });
+  });
 
   // Bind folder collapse/expand
   list.querySelectorAll('.folder-header').forEach((header) => {
@@ -440,7 +447,7 @@ function showReviewCard(): void {
 
   document.getElementById('reviewCardBody')!.innerHTML = `
     <div class="review-card-title">
-      <img class="review-card-favicon" src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(bmUrl).hostname)}&sz=32" onerror="this.style.display='none'" />
+      <img class="review-card-favicon" src="${getFaviconUrl(bmUrl)}" data-fallback="hide" />
       ${escapeHtml(bookmark.title)}
     </div>
     <div class="review-card-url">${escapeHtml(bmUrl)}</div>
@@ -457,6 +464,10 @@ function showReviewCard(): void {
       ${meta.intent ? `<span class="review-meta-tag ${meta.intent === 'temp' ? 'warn' : ''}">${intentLabels[meta.intent] || meta.intent}</span>` : ''}
     </div>
   `;
+
+  // Bind fallback for broken favicon (CSP-safe)
+  document.querySelector<HTMLImageElement>('.review-card-favicon[data-fallback="hide"]')
+    ?.addEventListener('error', (e) => { (e.target as HTMLImageElement).style.display = 'none'; });
 }
 
 async function reviewAction(action: 'keep' | 'archive' | 'delete'): Promise<void> {

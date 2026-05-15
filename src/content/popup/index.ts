@@ -5,6 +5,7 @@ interface PopupParams {
   url: string;
   title: string;
   parentId?: string;
+  favIconUrl?: string;
 }
 
 async function getPopupParams(): Promise<PopupParams | null> {
@@ -17,7 +18,7 @@ async function getPopupParams(): Promise<PopupParams | null> {
   try {
     const tabs = await api.tabs.query({ active: true, currentWindow: true });
     if (tabs[0]?.url) {
-      return { url: tabs[0].url, title: tabs[0].title || tabs[0].url };
+      return { url: tabs[0].url, title: tabs[0].title || tabs[0].url, favIconUrl: tabs[0].favIconUrl };
     }
   } catch {
     // Can't query tabs
@@ -61,10 +62,10 @@ intentOptions.forEach((option) => {
   });
 });
 
-function getFaviconUrl(url: string): string {
+function getFaviconUrl(params: PopupParams): string {
+  if (params.favIconUrl) return params.favIconUrl;
   try {
-    const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(u.hostname)}&sz=32`;
+    return `${new URL(params.url).origin}/favicon.ico`;
   } catch {
     return '';
   }
@@ -144,7 +145,7 @@ document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
 initParams().then(() => {
   if (popupParams) {
     pageTitle.textContent = popupParams.title || popupParams.url;
-    const favUrl = getFaviconUrl(popupParams.url);
+    const favUrl = getFaviconUrl(popupParams);
     if (favUrl) {
       pageFavicon.src = favUrl;
     } else {
