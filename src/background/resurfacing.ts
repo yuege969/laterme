@@ -1,8 +1,6 @@
 import { alarms, tabs, runtime } from '../utils/browser';
 import {
   getAllMetas,
-  addResurfacingLog,
-  wasShownToday,
   getSettings,
   updateMeta,
 } from '../storage/db';
@@ -32,9 +30,10 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
   if (!settings.resurfacingEnabled) return;
   if (settings.resurfacingFrequency === 'never') return;
 
-  // Check if already shown today
-  const todayShown = await wasShownToday();
-  if (todayShown) return;
+  // Guard: skip if already scheduled today (use storage flag, not DB log)
+  const today = new Date().toDateString();
+  const existing = await chrome.storage.local.get('pendingResurfacingDate');
+  if ((existing.pendingResurfacingDate as string) === today) return;
 
   // For weekly frequency, only show on Mondays
   if (settings.resurfacingFrequency === 'weekly') {
@@ -42,28 +41,23 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
   }
 
   const allMetas = await getAllMetas();
+  const maxAgeMs = settings.maxAgeDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ageCappedMetas = allMetas.filter((m) => (now - m.createdAt) <= maxAgeMs);
 
   // weekly mode: pick top 5 for a richer review session
   const isWeekly = settings.resurfacingFrequency === 'weekly';
   const picks = isWeekly
-    ? pickTopForResurfacing(allMetas, 5)
-    : pickTopForResurfacing(allMetas, 1);
+    ? pickTopForResurfacing(ageCappedMetas, 5)
+    : pickTopForResurfacing(ageCappedMetas, 1);
   if (picks.length === 0) return;
   const best = picks[0];
-
-  // Store that we showed something today
-  await addResurfacingLog({
-    bookmarkId: best.bookmarkId,
-    url: best.url,
-    shownAt: Date.now(),
-    action: 'ignored',
-  });
 
   // Store for next new tab open (single best + full list for weekly)
   await chrome.storage.local.set({
     pendingResurfacing: best,
     pendingResurfacingList: picks,
-    pendingResurfacingDate: new Date().toDateString(),
+    pendingResurfacingDate: today,
   });
 
   // Try to update already-open newtab pages
@@ -119,6 +113,9 @@ async function checkExpiredBookmarks(): Promise<void> {
 }
 
 export async function triggerResurfacingManual(): Promise<ResurfacingScore | null> {
-  const allMetas = await getAllMetas();
-  return pickBestForResurfacing(allMetas);
+  const [allMetas, settings] = await Promise.all([getAllMetas(), getSettings()]);
+  const maxAgeMs = settings.maxAgeDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ageCappedMetas = allMetas.filter((m) => (now - m.createdAt) <= maxAgeMs);
+  return pickBestForResurfacing(ageCappedMetas);
 }

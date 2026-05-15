@@ -1,5 +1,6 @@
 import { runtime } from '../utils/browser';
 import type { BookmarkMeta } from '../storage/types';
+import { escapeHtml } from '../utils/format';
 
 const NOTE_ATTR = 'data-laterme-url';
 let metasCache: Map<string, BookmarkMeta> = new Map();
@@ -232,11 +233,6 @@ async function showAddDialog(url: string): Promise<void> {
   });
 }
 
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
 
 function findBookmarkLinks(): HTMLAnchorElement[] {
   // The native bookmarks page uses various structures

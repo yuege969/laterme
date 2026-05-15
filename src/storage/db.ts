@@ -2,7 +2,7 @@ import type { BookmarkMeta, ResurfacingLog, AppSettings } from './types';
 import { DEFAULT_SETTINGS } from './types';
 
 const DB_NAME = 'LaterMeDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const META_STORE = 'bookmarks_meta';
 const LOG_STORE = 'resurfacing_logs';
 const SETTINGS_STORE = 'settings';
@@ -13,11 +13,19 @@ function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      const oldVersion = (event as IDBVersionChangeEvent).oldVersion;
+
       if (!db.objectStoreNames.contains(META_STORE)) {
-        db.createObjectStore(META_STORE, { keyPath: 'bookmarkId' });
+        // Fresh install: create store with url index
+        const metaStore = db.createObjectStore(META_STORE, { keyPath: 'bookmarkId' });
+        metaStore.createIndex('url', 'url', { unique: false });
+      } else if (oldVersion < 2) {
+        // Upgrade from v1: add url index to existing store
+        req.transaction!.objectStore(META_STORE).createIndex('url', 'url', { unique: false });
       }
+
       if (!db.objectStoreNames.contains(LOG_STORE)) {
         const logStore = db.createObjectStore(LOG_STORE, {
           keyPath: 'id',
@@ -52,8 +60,12 @@ export async function getMeta(bookmarkId: string): Promise<BookmarkMeta | undefi
 }
 
 export async function getMetaByUrl(url: string): Promise<BookmarkMeta | undefined> {
-  const all = await getAllMetas();
-  return all.find((m) => m.url === url);
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = store(db, META_STORE).index('url').get(url);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
 }
 
 export async function getAllMetas(): Promise<BookmarkMeta[]> {

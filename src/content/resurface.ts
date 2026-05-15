@@ -1,4 +1,5 @@
 import type { ResurfacingScore } from '../storage/types';
+import { getDaysText, escapeHtml } from '../utils/format';
 
 const BANNER_ID = 'laterme-resurfacing-banner';
 
@@ -62,24 +63,7 @@ async function init(): Promise<void> {
 function showBanner(score: ResurfacingScore): void {
   if (document.getElementById(BANNER_ID)) return;
 
-  const ageDays = Math.floor(
-    (Date.now() - score.createdAt) / (1000 * 60 * 60 * 24)
-  );
-
-  let daysText: string;
-  if (score.note) {
-    if (ageDays >= 180) daysText = '半年前的你，给现在的你留了一句话';
-    else if (ageDays >= 90) daysText = '3个月前的你，给现在的你留了一句话';
-    else if (ageDays >= 60) daysText = '2个月前的你，给现在的你留了一句话';
-    else if (ageDays >= 30) daysText = '1个月前的你，给现在的你留了一句话';
-    else daysText = '以前的你，给现在的你留了一句话';
-  } else {
-    if (ageDays >= 180) daysText = '这个收藏已经沉睡了半年';
-    else if (ageDays >= 90) daysText = '这个收藏已经沉睡了 3 个月';
-    else if (ageDays >= 60) daysText = '这个收藏已经沉睡了 2 个月';
-    else if (ageDays >= 30) daysText = '这个收藏已经沉睡了 1 个月';
-    else daysText = '以前收藏的页面，还记得吗？';
-  }
+  const daysText = getDaysText(score.createdAt, !!score.note);
 
   const banner = document.createElement('div');
   banner.id = BANNER_ID;
@@ -170,12 +154,6 @@ function bindEvents(score: ResurfacingScore): void {
       payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' },
     }).catch(() => {});
   } catch { /* context invalidated */ }
-}
-
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // Run on page load

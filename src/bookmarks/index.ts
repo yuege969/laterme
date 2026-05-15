@@ -1,19 +1,7 @@
 import { runtime, api } from '../utils/browser';
 import type { BookmarkMeta, IntentType } from '../storage/types';
-
-const INTENT_LABELS: Record<string, string> = {
-  project: '项目参考',
-  learn: '学习中',
-  problem: '解决问题',
-  temp: '临时查看',
-};
-
-const INTENT_EMOJI: Record<string, string> = {
-  project: '🛠',
-  learn: '📖',
-  problem: '🔧',
-  temp: '⏳',
-};
+import { INTENT_LABELS, INTENT_EMOJI } from '../storage/types';
+import { escapeHtml } from '../utils/format';
 
 interface DisplayItem {
   bookmark: chrome.bookmarks.BookmarkTreeNode;
@@ -337,12 +325,6 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
       (saveBtn as HTMLButtonElement).click();
     }
   });
-}
-
-function escapeHtml(str: string): string {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 // Filter buttons

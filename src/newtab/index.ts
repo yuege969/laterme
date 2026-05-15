@@ -1,5 +1,6 @@
 import { runtime } from '../utils/browser';
 import type { ResurfacingScore } from '../storage/types';
+import { getDaysText, escapeHtml } from '../utils/format';
 
 // Clock
 function updateClock(): void {
@@ -61,6 +62,7 @@ async function checkResurfacing(): Promise<void> {
       if (items.length > 0) {
         showBannerList(items);
         await chrome.storage.local.remove(['pendingResurfacing', 'pendingResurfacingList']);
+        await chrome.storage.local.set({ resurfacingShownDate: today });
         return;
       }
     }
@@ -73,26 +75,10 @@ async function checkResurfacing(): Promise<void> {
     const result = await runtime.sendMessage({ type: 'TRIGGER_RESURFACING' });
     if (result?.result) {
       showBannerList([result.result as ResurfacingScore]);
+      await chrome.storage.local.set({ resurfacingShownDate: new Date().toDateString() });
     }
   } catch {
     // quiet
-  }
-}
-
-function getDaysText(score: ResurfacingScore): string {
-  const ageDays = Math.floor((Date.now() - score.createdAt) / (1000 * 60 * 60 * 24));
-  if (score.note) {
-    if (ageDays >= 180) return '半年前的你，给现在的你留了一句话';
-    if (ageDays >= 90) return '3个月前的你，给现在的你留了一句话';
-    if (ageDays >= 60) return '2个月前的你，给现在的你留了一句话';
-    if (ageDays >= 30) return '1个月前的你，给现在的你留了一句话';
-    return '以前的你，给现在的你留了一句话';
-  } else {
-    if (ageDays >= 180) return '这个收藏已经沉睡了半年';
-    if (ageDays >= 90) return '这个收藏已经沉睡了 3 个月';
-    if (ageDays >= 60) return '这个收藏已经沉睡了 2 个月';
-    if (ageDays >= 30) return '这个收藏已经沉睡了 1 个月';
-    return '以前收藏的页面，还记得吗？';
   }
 }
 
@@ -160,12 +146,6 @@ function showBannerList(items: ResurfacingScore[]): void {
   });
 }
 
-function escapeHtml(s: string): string {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
 function showBanner(score: ResurfacingScore): void {
   const banner = document.getElementById('resurfacingBanner');
   if (!banner) return;
@@ -174,7 +154,7 @@ function showBanner(score: ResurfacingScore): void {
   const titleEl = document.getElementById('resurfacingTitle');
   const noteEl = document.getElementById('resurfacingNote');
 
-  if (daysEl) daysEl.textContent = getDaysText(score);
+  if (daysEl) daysEl.textContent = getDaysText(score.createdAt, !!score.note);
   if (titleEl) titleEl.textContent = score.title || score.url;
   if (noteEl) {
     noteEl.textContent = score.note ? `💬 "${score.note}"` : '这个收藏还没有备注';

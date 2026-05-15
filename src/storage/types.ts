@@ -48,8 +48,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const INTENT_LABELS: Record<NonNullable<IntentType>, string> = {
-  project: '以后做项目时参考',
-  learn: '学习时再看',
-  problem: '解决特定问题时用',
-  temp: '临时查看（3天后过期）',
+  project: '项目参考',
+  learn: '学习中',
+  problem: '解决问题',
+  temp: '临时查看',
+};
+
+export const INTENT_EMOJI: Record<NonNullable<IntentType>, string> = {
+  project: '🛠️',
+  learn: '📖',
+  problem: '🔧',
+  temp: '⏳',
 };
