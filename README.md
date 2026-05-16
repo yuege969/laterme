@@ -1,118 +1,47 @@
 # LaterMe
 
-> 收藏时留一句话，让收藏夹重新活过来
+> 收藏，是为了再次遇见
 
-LaterMe 是一个浏览器扩展，在收藏网页的瞬间让你给未来的自己留一句话。它不帮你"收藏更多"，而是帮你"重新打开"。
+LaterMe 是一个浏览器扩展。它不帮你"收藏更多"，而是帮你"重新打开"——在每个收藏的瞬间，给未来的自己留一句话，让收藏夹从杂乱的仓库变成你的知识花园。
 
 ## 功能
 
-- **收藏备注** — 按 Ctrl+D 收藏时弹出窗口，让你写一句备注（最多50字）
-- **书签增强** — 在浏览器书签管理器中显示备注信息
-- **智能提醒** — 定期在新标签页展示被遗忘的旧收藏
+- **时间胶囊** — 按 Ctrl+D 收藏时弹出暖色卡片，写下你此刻的想法（最多 120 字）。未来的某天重新看到这个收藏时，你会感谢现在的自己
+- **智能回顾** — 打开书签管理页时，LaterMe 会适时提醒那些被遗忘的旧收藏，展示过去你留下的备注，让你想起当时的初心
+- **复盘清理** — 一键进入复盘模式，逐条审视旧书签，保留真正有价值的东西，归档或删除不再需要的
+- **本地存储** — 所有数据保存在设备 IndexedDB 中，不上传任何服务器，不需要任何 AI/LLM API
 
 ## 安装
 
-### 开发模式
-
 ```bash
-# 安装依赖
 npm install
-
-# 构建
-npm run build
-
-# 监听模式开发
-npm run dev
+npm run build      # 产物在 dist/
+npm run dev        # 监听模式
 ```
 
-### 在 Chrome 中加载
+在 Chrome 中：打开 `chrome://extensions/` → 开启开发者模式 → 加载已解压的扩展程序 → 选择 `dist/` 目录。
 
-1. 打开 `chrome://extensions/`
-2. 开启「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择 `dist/` 目录
+## 使用
 
-### 在 Edge 中加载
+| 操作 | 方式 |
+|------|------|
+| 收藏并留备注 | 按 `Ctrl+D`（Mac: `Cmd+D`），或点击浏览器星标 |
+| 浏览书签 | 点击扩展工具栏图标 → 「所有书签」 |
+| 复盘清理 | 书签管理页 → 点击「复盘清理」按钮 |
+| 设置 | 右键扩展图标 → 选项 |
 
-1. 打开 `edge://extensions/`
-2. 开启「开发人员模式」
-3. 点击「加载解压缩的扩展」
-4. 选择 `dist/` 目录
-
-## 使用方式
-
-### 收藏网页
-
-1. 按 `Ctrl+D`（Mac 上 `Cmd+D`）或点击工具栏图标
-2. 在弹出的窗口中输入备注（可选选择用途）
-3. 点击「保存」完成收藏
-
-### 查看备注
-
-打开浏览器书签管理器（`chrome://bookmarks/`），每个有备注的书签下方会显示备注信息。
-
-### 重新发现旧收藏
-
-打开新标签页时，可能会看到底部出现提醒横幅，展示被遗忘的旧收藏。
+复盘模式快捷键：`↑` 打开 · `←` 保留 · `↓` 归档 · `→` 删除 · `Esc` 退出。
 
 ## 技术栈
 
-- Manifest V3
-- TypeScript
-- Vite + @crxjs/vite-plugin
-- IndexedDB（本地存储，无后端）
+TypeScript · Vite（自定义构建插件） · Manifest V3 · IndexedDB · Chrome/Edge 兼容
 
-## 目录结构
-
-```
-laterme/
-├── manifest.json
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── src/
-│   ├── background/        # Service Worker
-│   │   ├── index.ts       # 主入口 & 消息路由
-│   │   ├── bookmark.ts    # 书签监听
-│   │   ├── resurfacing.ts # 重新提醒逻辑
-│   │   └── alarm.ts       # 定时任务
-│   ├── content/           # 内容脚本
-│   │   ├── capture.ts     # Ctrl+D 拦截
-│   │   ├── bookmarkManager.ts  # 书签管理器增强
-│   │   ├── newTab.ts      # 新标签页横幅
-│   │   └── popup/         # 备注弹窗
-│   ├── storage/           # 数据层
-│   │   ├── db.ts          # IndexedDB 封装
-│   │   └── types.ts       # 类型定义
-│   ├── utils/
-│   │   ├── browser.ts     # 跨浏览器 API
-│   │   └── matcher.ts     # 评分算法
-│   ├── options/           # 设置页
-│   └── styles/
-│       ├── bookmarkManager.css
-│       └── resurfacing.css
-├── public/
-│   └── icons/
-└── scripts/
-    └── generate-icons.html
-```
-
-## 打包提交
+## 打包
 
 ```bash
-# 构建并打包为 zip
-npm run zip
+npm run zip       # 生成 laterme.zip，可直接提交到商店
 ```
-
-生成的 `laterme.zip` 可以直接提交到 Chrome Web Store 或 Edge Add-ons。
 
 ## 隐私
 
-- 所有数据存储在用户设备的 IndexedDB 中
-- 不上传任何数据到远程服务器
-- 不需要任何 AI/LLM API
-- 卸载后浏览器原生书签不受影响
-
-## 许可
-
-MIT
+不上传任何数据到远程服务器。卸载后浏览器原生书签不受影响。MIT 许可。
