@@ -49,8 +49,8 @@ noteInput.addEventListener('input', () => {
   const len = noteInput.value.length;
   charCount.textContent = String(len);
   charCount.className = '';
-  if (len >= 50) charCount.className = 'full';
-  else if (len >= 40) charCount.className = 'warn';
+  if (len >= 120) charCount.className = 'full';
+  else if (len >= 100) charCount.className = 'warn';
 });
 
 // Intent selection

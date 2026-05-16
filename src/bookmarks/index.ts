@@ -1,7 +1,7 @@
 import { runtime, api } from '../utils/browser';
-import type { BookmarkMeta, IntentType } from '../storage/types';
+import type { BookmarkMeta, IntentType, ResurfacingScore } from '../storage/types';
 import { INTENT_LABELS, INTENT_EMOJI } from '../storage/types';
-import { escapeHtml } from '../utils/format';
+import { escapeHtml, getAgeDays, getDaysText } from '../utils/format';
 
 interface DisplayItem {
   bookmark: chrome.bookmarks.BookmarkTreeNode;
@@ -11,7 +11,21 @@ interface DisplayItem {
 
 let allItems: DisplayItem[] = [];
 let currentFilter = 'all';
+let currentSort = 'newest';
 let searchQuery = '';
+
+function sortItems(items: DisplayItem[]): DisplayItem[] {
+  switch (currentSort) {
+    case 'newest':
+      return [...items].sort((a, b) => (b.bookmark.dateAdded || 0) - (a.bookmark.dateAdded || 0));
+    case 'oldest':
+      return [...items].sort((a, b) => (a.bookmark.dateAdded || 0) - (b.bookmark.dateAdded || 0));
+    case 'name':
+      return [...items].sort((a, b) => a.bookmark.title.localeCompare(b.bookmark.title, 'zh-CN'));
+    default:
+      return items;
+  }
+}
 
 async function loadData(): Promise<void> {
   const [tree, metasResult] = await Promise.all([
@@ -22,7 +36,9 @@ async function loadData(): Promise<void> {
   const metas = (metasResult?.metas || []) as BookmarkMeta[];
   const metaMap = new Map(metas.map((m) => [m.bookmarkId, m]));
 
-  // Flatten bookmark tree, tracking folder paths
+  // Flatten bookmark tree, tracking folder paths.
+  // Skip Chrome's system root folders — they aren't the user's own organization.
+  const SYSTEM_ROOTS = new Set(['书签栏', '其他书签', 'Bookmarks bar', 'Other bookmarks']);
   const flat: { bookmark: chrome.bookmarks.BookmarkTreeNode; folderPath: string }[] = [];
   function walk(nodes: chrome.bookmarks.BookmarkTreeNode[], parents: string[]): void {
     for (const node of nodes) {
@@ -30,7 +46,9 @@ async function loadData(): Promise<void> {
         flat.push({ bookmark: node, folderPath: parents.join(' / ') });
       }
       if (node.children) {
-        walk(node.children, [...parents, node.title]);
+        const title = SYSTEM_ROOTS.has(node.title) ? '' : node.title;
+        const next = title ? [...parents, title] : parents;
+        walk(node.children, next);
       }
     }
   }
@@ -80,7 +98,7 @@ function getFilteredItems(): DisplayItem[] {
 }
 
 function formatTime(ts: number): string {
-  const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+  const days = Math.floor(getAgeDays(ts));
   if (days === 0) return '今天';
   if (days === 1) return '昨天';
   if (days > 365) return `${Math.floor(days / 365)} 年前`;
@@ -92,7 +110,7 @@ function formatTime(ts: number): string {
 }
 
 function getNoteAgeClass(ts: number): string {
-  const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
+  const days = Math.floor(getAgeDays(ts));
   if (days > 180) return 'age-danger';
   if (days > 90) return 'age-warn';
   return '';
@@ -152,6 +170,7 @@ function renderCard(bookmark: chrome.bookmarks.BookmarkTreeNode, meta: BookmarkM
         <div class="bm-content">
           <div class="bm-title">${escapeHtml(bookmark.title)}</div>
           <div class="bm-url">${escapeHtml(bmUrl)}</div>
+          ${bookmark.dateAdded ? `<div class="bm-added">收藏于 ${formatTime(bookmark.dateAdded)}</div>` : ''}
         </div>
         <div class="bm-actions">
           ${meta?.status === 'expired' ? '<span class="bm-status-tag expired">已过期</span>' : ''}
@@ -190,27 +209,33 @@ function render(): void {
     return a[0].localeCompare(b[0], 'zh-CN');
   });
 
+  const singleFolder = sortedGroups.length <= 1;
   let html = '';
   let folderIndex = 0;
+
   for (const [folderName, groupItems] of sortedGroups) {
     const folderId = 'f' + folderIndex++;
-    const isFirst = folderIndex === 1;
-    html += `
-      <div class="folder-group">
-        <div class="folder-header" data-folder="${folderId}">
-          <span class="folder-arrow" id="arrow-${folderId}">${isFirst ? '▾' : '▸'}</span>
-          <span class="folder-icon">📁</span>
-          <span class="folder-name">${escapeHtml(folderName)}</span>
-          <span class="folder-count">${groupItems.length}</span>
-        </div>
-        <div class="folder-items${isFirst ? '' : ' collapsed'}" id="${folderId}">
-          ${groupItems.map(({ bookmark, meta }) => renderCard(bookmark, meta)).join('')}
-        </div>
-      </div>`;
+    const sortedItems = sortItems(groupItems);
+    const cardsHtml = sortedItems.map(({ bookmark, meta }) => renderCard(bookmark, meta)).join('');
+
+    if (singleFolder) {
+      html += `<div class="folder-items" id="${folderId}">${cardsHtml}</div>`;
+    } else {
+      html += `
+        <div class="folder-group">
+          <div class="folder-header" data-folder="${folderId}">
+            <span class="folder-name">${escapeHtml(folderName)}</span>
+            <span class="folder-count">${groupItems.length} 条</span>
+            <span class="folder-arrow" id="arrow-${folderId}">▸</span>
+          </div>
+          <div class="folder-items collapsed" id="${folderId}">${cardsHtml}</div>
+        </div>`;
+    }
   }
+
   list.innerHTML = html;
 
-  // Bind fallback for broken favicons (CSP-safe alternative to onerror=)
+  // Bind fallback for broken favicons
   list.querySelectorAll<HTMLImageElement>('img[data-fallback="hide"]').forEach((img) => {
     img.addEventListener('error', () => { img.style.display = 'none'; });
   });
@@ -257,9 +282,9 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
   const wrapper = document.createElement('div');
   wrapper.className = 'bm-note-editor';
   wrapper.innerHTML = `
-    <input type="text" class="bm-note-input" value="${escapeHtml(currentNote)}" maxlength="50" placeholder="给未来的自己留句话..." />
+    <input type="text" class="bm-note-input" value="${escapeHtml(currentNote)}" maxlength="120" placeholder="给未来的自己留句话..." />
     <div class="bm-note-actions">
-      <span class="bm-note-count">${currentNote.length}/50</span>
+      <span class="bm-note-count">${currentNote.length}/120</span>
       <button class="bm-note-save">保存</button>
       <button class="bm-note-cancel">取消</button>
     </div>
@@ -275,7 +300,7 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
   input.setSelectionRange(input.value.length, input.value.length);
 
   input.addEventListener('input', () => {
-    countEl.textContent = `${input.value.length}/50`;
+    countEl.textContent = `${input.value.length}/120`;
   });
 
   const cleanup = () => {
@@ -294,7 +319,7 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
 
   saveBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    const newNote = input.value.trim().substring(0, 50);
+    const newNote = input.value.trim().substring(0, 120);
     if (meta) {
       await runtime.sendMessage({
         type: 'UPDATE_META',
@@ -345,14 +370,160 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
   render();
 });
 
+// Sort
+document.getElementById('sortSelect')?.addEventListener('change', (e) => {
+  currentSort = (e.target as HTMLSelectElement).value;
+  render();
+});
+
 // Open native bookmarks
 document.getElementById('openNative')?.addEventListener('click', (e) => {
   e.preventDefault();
   api.tabs.create({ url: 'chrome://bookmarks/' });
 });
 
+// ── Resurfacing Banner ──────────────────────────────────────────────────────────
+
+async function checkResurfacing(): Promise<void> {
+  const banner = document.getElementById('resurfacingBanner');
+  if (!banner) return;
+
+  try {
+    const data = await chrome.storage.local.get([
+      'pendingResurfacing',
+      'pendingResurfacingList',
+      'pendingResurfacingDate',
+    ]);
+    const date = data.pendingResurfacingDate as string | undefined;
+    const today = new Date().toDateString();
+    if (date !== today) return;
+
+    const list = data.pendingResurfacingList as ResurfacingScore[] | undefined;
+    const single = data.pendingResurfacing as ResurfacingScore | undefined;
+    const items = list ?? (single ? [single] : []);
+    if (items.length === 0) return;
+
+    if (items.length === 1) {
+      showResurfacingSingle(banner, items[0]);
+    } else {
+      showResurfacingBatch(banner, items);
+    }
+
+    await chrome.storage.local.remove(['pendingResurfacing', 'pendingResurfacingList']);
+  } catch { /* quiet */ }
+}
+
+function showResurfacingSingle(banner: HTMLElement, score: ResurfacingScore): void {
+  const daysEl = document.getElementById('bmResurfacingDays');
+  const titleEl = document.getElementById('bmResurfacingTitle');
+  const noteEl = document.getElementById('bmResurfacingNote');
+  const openBtn = document.getElementById('bmResurfacingOpen');
+  const snoozeBtn = document.getElementById('bmResurfacingSnooze');
+  const archiveBtn = document.getElementById('bmResurfacingArchive');
+  const closeBtn = document.getElementById('bmResurfacingClose');
+
+  if (daysEl) daysEl.textContent = getDaysText(score.createdAt, !!score.note);
+  if (titleEl) titleEl.textContent = score.title || score.url;
+  if (noteEl) noteEl.textContent = score.note ? `💬 "${score.note}"` : '这个收藏还没有备注';
+
+  banner.classList.remove('hidden');
+
+  const close = () => banner.classList.add('hidden');
+
+  openBtn?.addEventListener('click', async () => {
+    await runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' } });
+    runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId: score.bookmarkId } });
+    close();
+  });
+
+  snoozeBtn?.addEventListener('click', async () => {
+    await runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' } });
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000 } });
+    close();
+  });
+
+  archiveBtn?.addEventListener('click', async () => {
+    await runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' } });
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, status: 'archived' } });
+    showBmUndoToast(banner, score.bookmarkId);
+  });
+
+  closeBtn?.addEventListener('click', close);
+
+  runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' } }).catch(() => {});
+}
+
+function showResurfacingBatch(banner: HTMLElement, items: ResurfacingScore[]): void {
+  const inner = banner.querySelector('.bm-resurfacing-inner') as HTMLElement;
+  if (!inner) return;
+
+  const listHtml = items.map((score, i) => `
+    <div class="bm-resurfacing-batch-item" data-idx="${i}">
+      <div class="bm-resurfacing-batch-title">${escapeHtml(score.title || score.url)}</div>
+      ${score.note ? `<div class="bm-resurfacing-batch-note">💬 "${escapeHtml(score.note)}"</div>` : ''}
+      <div class="bm-resurfacing-batch-actions">
+        <button class="bm-resurfacing-btn bm-resurfacing-btn-open" data-idx="${i}">打开</button>
+        <button class="bm-resurfacing-btn bm-resurfacing-btn-archive" data-idx="${i}">不再提醒</button>
+      </div>
+    </div>
+  `).join('');
+
+  inner.innerHTML = `
+    <button class="bm-resurfacing-close" id="bmResurfacingBatchClose">&times;</button>
+    <div class="bm-resurfacing-header">
+      <span class="bm-resurfacing-icon">📌</span>
+      <span class="bm-resurfacing-days">本周收藏回顾 · ${items.length} 条</span>
+    </div>
+    <div class="bm-resurfacing-batch-list">${listHtml}</div>
+  `;
+
+  banner.classList.remove('hidden');
+
+  const close = () => banner.classList.add('hidden');
+  document.getElementById('bmResurfacingBatchClose')?.addEventListener('click', close);
+
+  inner.querySelectorAll<HTMLButtonElement>('.bm-resurfacing-btn-open').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const score = items[Number(btn.dataset.idx)];
+      runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' } });
+      runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId: score.bookmarkId } });
+    });
+  });
+
+  inner.querySelectorAll<HTMLButtonElement>('.bm-resurfacing-btn-archive').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const score = items[Number(btn.dataset.idx)];
+      const row = btn.closest('.bm-resurfacing-batch-item') as HTMLElement;
+      runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' } }).catch(() => {});
+      runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, status: 'archived' } }).catch(() => {});
+      if (row) showBmUndoToast(row, score.bookmarkId);
+    });
+  });
+
+  items.forEach((score) => {
+    runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' } }).catch(() => {});
+  });
+}
+
+function showBmUndoToast(container: HTMLElement, bookmarkId: string): void {
+  const originalHTML = container.innerHTML;
+  container.innerHTML = `<div class="bm-resurfacing-toast">已归档 · <button class="bm-resurfacing-toast-undo">撤销</button></div>`;
+  let undone = false;
+
+  container.querySelector('.bm-resurfacing-toast-undo')?.addEventListener('click', async () => {
+    undone = true;
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId, status: 'active' } });
+    container.innerHTML = originalHTML;
+  });
+
+  setTimeout(() => {
+    if (!undone) container.style.display = 'none';
+  }, 5000);
+}
+
 // Init
 loadData();
+checkResurfacing();
 
 // ── Review Mode ────────────────────────────────────────────────────────────────
 
@@ -409,9 +580,10 @@ function showReviewCard(): void {
   const candidate = reviewCandidates[reviewIndex];
   const { bookmark, meta } = candidate;
   const bmUrl = bookmark.url || '';
-  const daysAgo = Math.floor((Date.now() - meta.createdAt) / (1000 * 60 * 60 * 24));
+  const createdAt = bookmark.dateAdded || meta.createdAt;
+  const daysAgo = Math.floor(getAgeDays(createdAt));
   const lastOpenDays = meta.openCount > 0
-    ? `${Math.floor((Date.now() - meta.lastOpenedAt) / (1000 * 60 * 60 * 24))} 天前打开过`
+    ? `${Math.floor(getAgeDays(meta.lastOpenedAt))} 天前打开过`
     : '从未打开';
   const total = reviewCandidates.length;
   const progress = Math.round((reviewIndex / total) * 100);
@@ -452,12 +624,15 @@ function showReviewCard(): void {
     ?.addEventListener('error', (e) => { (e.target as HTMLImageElement).style.display = 'none'; });
 }
 
-async function reviewAction(action: 'keep' | 'archive' | 'delete'): Promise<void> {
+async function reviewAction(action: 'open' | 'keep' | 'archive' | 'delete'): Promise<void> {
   if (reviewIndex >= reviewCandidates.length) return;
   const candidate = reviewCandidates[reviewIndex];
   const { bookmarkId } = candidate.meta;
 
   switch (action) {
+    case 'open':
+      runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId } });
+      return;
     case 'keep':
       reviewStats.kept++;
       break;
@@ -491,7 +666,10 @@ function showReviewComplete(): void {
 }
 
 function onReviewKeydown(e: KeyboardEvent): void {
-  if (e.key === 'ArrowLeft') {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    reviewAction('open');
+  } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
     reviewAction('keep');
   } else if (e.key === 'ArrowDown') {
@@ -509,6 +687,7 @@ function onReviewKeydown(e: KeyboardEvent): void {
 document.getElementById('reviewBtn')?.addEventListener('click', openReviewMode);
 document.getElementById('reviewExit')?.addEventListener('click', closeReviewMode);
 document.getElementById('reviewBack')?.addEventListener('click', closeReviewMode);
+document.getElementById('reviewOpen')?.addEventListener('click', () => reviewAction('open'));
 document.getElementById('reviewKeep')?.addEventListener('click', () => reviewAction('keep'));
 document.getElementById('reviewArchive')?.addEventListener('click', () => reviewAction('archive'));
 document.getElementById('reviewDelete')?.addEventListener('click', () => reviewAction('delete'));

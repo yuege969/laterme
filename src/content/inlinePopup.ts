@@ -16,42 +16,28 @@ const CSS = `
 :host {
   all: initial;
   position: fixed;
-  inset: 0;
+  top: 16px;
+  right: 16px;
   z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Backdrop */
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.3);
-  animation: fadeIn 0.15s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Card */
+/* Card — warm paper feel */
 .card {
-  position: relative;
   width: 400px;
   max-width: calc(100vw - 32px);
-  background: #fff;
+  background: #fffef9;
   border-radius: 16px;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05);
-  animation: cardIn 0.22s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:
+    0 0 0 1px rgba(180,160,130,0.12),
+    0 4px 24px rgba(80,60,30,0.08),
+    0 16px 64px rgba(80,60,30,0.06);
+  animation: cardIn 0.25s cubic-bezier(0.22,1,0.36,1);
   overflow: hidden;
 }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(16px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-12px) scale(0.95); }
 }
 
 *, *::before, *::after {
@@ -60,58 +46,76 @@ const CSS = `
   padding: 0;
 }
 
+/* Header */
+.popup-header {
+  padding: 18px 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup-header-emoji { font-size: 20px; line-height: 1; }
+
+.popup-header-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3d2e1c;
+  letter-spacing: -0.01em;
+}
+
 /* Page info */
 .page-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 20px 14px;
+  gap: 8px;
+  padding: 12px 20px 14px;
 }
 
 .page-favicon {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
   flex-shrink: 0;
+  opacity: 0.8;
 }
 
 .page-title {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #a39378;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.3;
 }
 
 /* Note input */
 .note-section {
-  padding: 0 20px 14px;
+  padding: 0 20px 12px;
 }
 
 .note-input {
   width: 100%;
-  padding: 12px 14px;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1.5px solid #e8e0d3;
+  border-radius: 12px;
   font-size: 15px;
   font-family: inherit;
-  color: #1f2937;
-  background: #f9fafb;
+  color: #3d2e1c;
+  background: #fefcf7;
   resize: none;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  line-height: 1.5;
+  transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+  line-height: 1.6;
 }
 
 .note-input:focus {
-  border-color: #4f46e5;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+  border-color: #c4863b;
+  background: #fffef9;
+  box-shadow: 0 0 0 4px rgba(196,134,59,0.08);
 }
 
 .note-input::placeholder {
-  color: #c4c4c4;
+  color: #c4b89e;
+  font-style: italic;
 }
 
 .char-row {
@@ -119,31 +123,33 @@ const CSS = `
   align-items: center;
   justify-content: space-between;
   margin-top: 6px;
+  padding: 0 4px;
 }
 
 .char-hint {
   font-size: 11px;
-  color: #d1d5db;
+  color: #c4b89e;
 }
 
 .char-count {
   font-size: 11px;
-  color: #c4c4c4;
+  color: #c4b89e;
+  font-variant-numeric: tabular-nums;
 }
-.char-count.warn { color: #f59e0b; }
-.char-count.full { color: #ef4444; }
+.char-count.warn { color: #d4933c; }
+.char-count.full { color: #c4665a; }
 
 /* Intent pills */
 .intent-section {
-  padding: 0 20px 4px;
+  padding: 0 20px 6px;
 }
 
 .intent-label {
   font-size: 11px;
-  font-weight: 500;
-  color: #9ca3af;
+  font-weight: 600;
+  color: #b8a083;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   margin-bottom: 8px;
 }
 
@@ -157,27 +163,27 @@ const CSS = `
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
   cursor: pointer;
   font-size: 12px;
   font-family: inherit;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: #8b7355;
+  background: #faf6ef;
   border: 1.5px solid transparent;
-  transition: all 0.15s;
+  transition: all 0.2s;
   user-select: none;
 }
 
 .intent-option:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: #f5ede0;
+  color: #5c3d1a;
 }
 
 .intent-option.selected {
-  background: #eef2ff;
-  color: #4f46e5;
-  border-color: #4f46e5;
+  background: #faf3e8;
+  color: #b8761f;
+  border-color: #d4a574;
 }
 
 .intent-option input[type="radio"] {
@@ -185,7 +191,7 @@ const CSS = `
 }
 
 .intent-emoji {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -195,52 +201,57 @@ const CSS = `
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  border-top: 1px solid #f3f4f6;
-  margin-top: 12px;
+  border-top: 1px solid #f0eadb;
+  margin-top: 10px;
 }
 
 .footer-link {
   font-size: 12px;
-  color: #9ca3af;
+  color: #b8a083;
   text-decoration: none;
   cursor: pointer;
   background: none;
   border: none;
   font-family: inherit;
   padding: 0;
-  transition: color 0.15s;
+  transition: color 0.2s;
 }
-.footer-link:hover { color: #4f46e5; }
+.footer-link:hover { color: #8b6914; }
 
 .btn-save {
-  padding: 8px 24px;
+  padding: 9px 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  background: #4f46e5;
+  background: linear-gradient(135deg, #d4933c 0%, #c4863b 100%);
   color: #fff;
-  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(180,120,40,0.25);
+  transition: all 0.2s;
 }
-.btn-save:hover  { background: #4338ca; }
-.btn-save:active { background: #3730a3; transform: scale(0.98); }
+.btn-save:hover  {
+  background: linear-gradient(135deg, #c4863b 0%, #b8761f 100%);
+  box-shadow: 0 4px 16px rgba(180,120,40,0.35);
+  transform: translateY(-1px);
+}
+.btn-save:active { transform: scale(0.97); }
 
 .key-hint {
   font-size: 11px;
-  color: #d1d5db;
-  padding: 4px 20px 12px;
+  color: #d4c9b5;
+  padding: 2px 20px 12px;
 }
 .key-hint kbd {
   display: inline-block;
-  padding: 1px 5px;
+  padding: 1px 6px;
   font-size: 10px;
   font-family: inherit;
-  color: #9ca3af;
-  background: #f3f4f6;
-  border-radius: 3px;
-  border: 1px solid #e5e7eb;
+  color: #b8a083;
+  background: #faf6ef;
+  border-radius: 4px;
+  border: 1px solid #e8e0d3;
   margin: 0 2px;
 }
 `;
@@ -249,8 +260,11 @@ const CSS = `
 function buildHTML(): string {
   return `
     <style>${CSS}</style>
-    <div class="overlay" id="laterme-overlay"></div>
     <div class="card" id="laterme-card">
+      <div class="popup-header">
+        <span class="popup-header-emoji">💡</span>
+        <span class="popup-header-text">给未来的自己留句话</span>
+      </div>
       <div class="page-info">
         <img class="page-favicon" id="pageFavicon" src="" alt="" />
         <span class="page-title" id="pageTitle"></span>
@@ -259,13 +273,13 @@ function buildHTML(): string {
         <textarea
           id="noteInput"
           class="note-input"
-          placeholder="给未来的自己留句话..."
-          maxlength="50"
+          placeholder="现在的你，想对以后打开这个收藏的自己说些什么..."
+          maxlength="120"
           rows="2"
         ></textarea>
         <div class="char-row">
-          <span class="char-hint">方便以后想起为什么要收藏</span>
-          <span class="char-count"><span id="charCount">0</span>/50</span>
+          <span class="char-hint">以后回想起为什么要收藏</span>
+          <span class="char-count"><span id="charCount">0</span>/120</span>
         </div>
       </div>
       <div class="intent-section">
@@ -295,7 +309,7 @@ function buildHTML(): string {
       </div>
       <div class="footer">
         <a class="footer-link" id="bookmarksLink" href="#">所有书签</a>
-        <button id="saveBtn" class="btn-save">保存</button>
+        <button id="saveBtn" class="btn-save">种下这枚时间胶囊</button>
       </div>
       <div class="key-hint">
         <kbd>Enter</kbd> 保存 &nbsp; <kbd>Esc</kbd> 取消
@@ -369,8 +383,8 @@ export function showInlinePopup(params: InlinePopupParams): void {
     const len = noteInput.value.length;
     charCount.textContent = String(len);
     charCount.className = '';
-    if (len >= 50) charCount.className = 'full';
-    else if (len >= 40) charCount.className = 'warn';
+    if (len >= 120) charCount.className = 'full';
+    else if (len >= 100) charCount.className = 'warn';
   });
 
   // Intent selection
@@ -421,17 +435,21 @@ export function showInlinePopup(params: InlinePopupParams): void {
   };
   document.addEventListener('keydown', onKeydown, true);
 
-  // Click overlay to dismiss
-  const overlay = shadow.getElementById('laterme-overlay')!;
-  overlay.addEventListener('click', () => dismiss());
+  // Click outside the popup to dismiss
+  document.addEventListener('click', function onDocClick(e: Event) {
+    if (!host.contains(e.target as Node)) {
+      dismiss();
+      document.removeEventListener('click', onDocClick);
+    }
+  });
 
   // Pre-fill summary if available
   if (params.summary) {
     noteInput.value = params.summary;
     const len = params.summary.length;
     charCount.textContent = String(len);
-    if (len >= 50) charCount.className = 'full';
-    else if (len >= 40) charCount.className = 'warn';
+    if (len >= 120) charCount.className = 'full';
+    else if (len >= 100) charCount.className = 'warn';
   }
 
   noteInput.focus();

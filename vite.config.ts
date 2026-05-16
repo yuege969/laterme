@@ -108,7 +108,6 @@ function extensionBuilder(): Plugin {
 
       // Copy CSS files
       const cssFiles = [
-        'src/styles/resurfacing.css',
         'src/content/popup/style.css',
         'src/options/style.css',
         'src/newtab/style.css',
@@ -155,7 +154,6 @@ function findInputs(): Record<string, string> {
   return {
     'background/index': resolve(root, 'src/background/index.ts'),
     'content/capture': resolve(root, 'src/content/capture.ts'),
-    'content/resurface': resolve(root, 'src/content/resurface.ts'),
     'content/popup/index': resolve(root, 'src/content/popup/index.ts'),
     'newtab/index': resolve(root, 'src/newtab/index.ts'),
     'welcome/index': resolve(root, 'src/welcome/index.ts'),

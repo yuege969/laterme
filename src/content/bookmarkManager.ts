@@ -146,9 +146,9 @@ function showInlineEditor(opts: {
     </style>
     <div class="overlay" id="overlay"></div>
     <div class="card">
-      <textarea id="input" maxlength="50" rows="2"></textarea>
+      <textarea id="input" maxlength="120" rows="2"></textarea>
       <div class="row">
-        <span class="count"><span id="cnt">0</span>/50</span>
+        <span class="count"><span id="cnt">0</span>/120</span>
         <div class="actions">
           <button class="cancel" id="cancelBtn">取消</button>
           <button class="save" id="saveBtn">保存</button>
@@ -173,12 +173,12 @@ function showInlineEditor(opts: {
   shadow.getElementById('cancelBtn')!.addEventListener('click', () => { close(); opts.onCancel(); });
   shadow.getElementById('saveBtn')!.addEventListener('click', () => {
     close();
-    opts.onSave(input.value.trim().substring(0, 50));
+    opts.onSave(input.value.trim().substring(0, 120));
   });
 
   document.addEventListener('keydown', function handler(e) {
     if (e.key === 'Escape') { close(); opts.onCancel(); document.removeEventListener('keydown', handler); }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); close(); opts.onSave(input.value.trim().substring(0, 50)); document.removeEventListener('keydown', handler); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); close(); opts.onSave(input.value.trim().substring(0, 120)); document.removeEventListener('keydown', handler); }
   }, true);
 
   // defer focus so shadow DOM is attached

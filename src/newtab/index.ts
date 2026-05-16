@@ -82,6 +82,27 @@ async function checkResurfacing(): Promise<void> {
   }
 }
 
+function showUndoToast(container: HTMLElement, bookmarkId: string, onUndo: () => void): void {
+  const originalHTML = container.innerHTML;
+  const originalDisplay = container.style.display;
+  container.innerHTML = `<div class="resurfacing-toast">已归档 · <button class="resurfacing-toast-undo">撤销</button></div>`;
+  let undone = false;
+
+  container.querySelector('.resurfacing-toast-undo')?.addEventListener('click', async () => {
+    undone = true;
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId, status: 'active' } });
+    container.innerHTML = originalHTML;
+    container.style.display = originalDisplay;
+    onUndo();
+  });
+
+  setTimeout(() => {
+    if (!undone) {
+      container.style.display = 'none';
+    }
+  }, 5000);
+}
+
 function showBannerList(items: ResurfacingScore[]): void {
   if (items.length === 0) return;
   // Single item: use the original banner layout
@@ -132,9 +153,13 @@ function showBannerList(items: ResurfacingScore[]): void {
   list.querySelectorAll<HTMLButtonElement>('.resurfacing-btn-archive').forEach((btn) => {
     btn.addEventListener('click', () => {
       const score = items[Number(btn.dataset.idx)];
+      const row = btn.closest('.resurfacing-batch-item') as HTMLElement;
       runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, status: 'archived' } }).catch(() => {});
-      btn.closest('.resurfacing-batch-item')?.remove();
-      if (document.querySelectorAll('.resurfacing-batch-item').length === 0) banner.classList.add('hidden');
+      runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' } }).catch(() => {});
+      if (!row) return;
+      showUndoToast(row, score.bookmarkId, () => {
+        if (document.querySelectorAll('.resurfacing-batch-item').length === 0) banner.classList.add('hidden');
+      });
     });
   });
 
@@ -196,7 +221,7 @@ function showBanner(score: ResurfacingScore): void {
       type: 'UPDATE_META',
       payload: { bookmarkId: score.bookmarkId, status: 'archived' },
     });
-    banner.classList.add('hidden');
+    showUndoToast(banner, score.bookmarkId, () => {});
   });
 
   document.getElementById('resurfacingClose')?.addEventListener('click', () => {

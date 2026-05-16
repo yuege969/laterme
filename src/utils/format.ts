@@ -1,9 +1,9 @@
-/**
- * Shared formatting utilities used by newtab, content/resurface, and bookmarks.
- */
+export function getAgeDays(ts: number): number {
+  return (Date.now() - ts) / (1000 * 60 * 60 * 24);
+}
 
 export function getDaysText(createdAt: number, hasNote: boolean): string {
-  const ageDays = Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24));
+  const ageDays = Math.floor(getAgeDays(createdAt));
   if (hasNote) {
     if (ageDays >= 180) return '半年前的你，给现在的你留了一句话';
     if (ageDays >= 90) return '3个月前的你，给现在的你留了一句话';
@@ -20,7 +20,10 @@ export function getDaysText(createdAt: number, hasNote: boolean): string {
 }
 
 export function escapeHtml(s: string): string {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

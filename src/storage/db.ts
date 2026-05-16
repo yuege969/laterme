@@ -99,9 +99,20 @@ export async function updateMeta(
   bookmarkId: string,
   patch: Partial<BookmarkMeta>
 ): Promise<void> {
-  const existing = await getMeta(bookmarkId);
-  if (!existing) return;
-  return putMeta({ ...existing, ...patch });
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(META_STORE, 'readwrite');
+    const objStore = tx.objectStore(META_STORE);
+    const getReq = objStore.get(bookmarkId);
+    getReq.onsuccess = () => {
+      const existing = getReq.result as BookmarkMeta | undefined;
+      if (!existing) { resolve(); return; }
+      objStore.put({ ...existing, ...patch });
+    };
+    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export async function getMetasByStatus(

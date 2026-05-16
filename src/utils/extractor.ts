@@ -41,6 +41,6 @@ function isNavigationText(text: string): boolean {
 }
 
 function truncate(text: string): string {
-  if (text.length <= 50) return text;
-  return text.substring(0, 47) + '...';
+  if (text.length <= 80) return text;
+  return text.substring(0, 77) + '...';
 }

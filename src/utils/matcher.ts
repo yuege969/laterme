@@ -1,12 +1,12 @@
 import type { BookmarkMeta, ResurfacingScore } from '../storage/types';
+import { getAgeDays } from './format';
 
 /**
  * Calculate resurfacing score for a bookmark.
  * Higher score = more likely to be shown to the user.
  */
 export function calculateResurfacingScore(meta: BookmarkMeta): ResurfacingScore {
-  const now = Date.now();
-  const ageDays = (now - meta.createdAt) / (1000 * 60 * 60 * 24);
+  const ageDays = getAgeDays(meta.createdAt);
 
   let timeScore = 0;
   let intentScore = 0;
@@ -72,14 +72,14 @@ export function filterEligibleForResurfacing(metas: BookmarkMeta[]): BookmarkMet
   // New-user grace period: if no non-temp bookmark is older than 30 days yet,
   // lower the minimum age threshold to 3 days so users see value immediately.
   const hasMaturedBookmark = metas.some(
-    (m) => m.intent !== 'temp' && (now - m.createdAt) / (1000 * 60 * 60 * 24) >= 30
+    (m) => m.intent !== 'temp' && getAgeDays(m.createdAt) >= 30
   );
   const minAgeDays = hasMaturedBookmark ? 30 : 3;
 
   return metas.filter((meta) => {
     if (meta.status !== 'active') return false;
 
-    const ageDays = (now - meta.createdAt) / (1000 * 60 * 60 * 24);
+    const ageDays = getAgeDays(meta.createdAt);
 
     if (meta.intent === 'temp') {
       // Remind once before the 3-day expiry window
