@@ -1,5 +1,6 @@
 import { runtime } from '../utils/browser';
 import type { ResurfacingScore } from '../storage/types';
+import { getDaysText, escapeHtml } from '../utils/format';
 
 // Clock
 function updateClock(): void {
@@ -48,15 +49,22 @@ async function checkResurfacing(): Promise<void> {
   try {
     const data = await chrome.storage.local.get([
       'pendingResurfacing',
+      'pendingResurfacingList',
       'pendingResurfacingDate',
     ]);
-    const pending = data.pendingResurfacing as ResurfacingScore | undefined;
     const date = data.pendingResurfacingDate as string | undefined;
+    const today = new Date().toDateString();
 
-    if (pending && date === new Date().toDateString()) {
-      showBanner(pending);
-      await chrome.storage.local.remove('pendingResurfacing');
-      return;
+    if (date === today) {
+      const list = data.pendingResurfacingList as ResurfacingScore[] | undefined;
+      const single = data.pendingResurfacing as ResurfacingScore | undefined;
+      const items = list ?? (single ? [single] : []);
+      if (items.length > 0) {
+        showBannerList(items);
+        await chrome.storage.local.remove(['pendingResurfacing', 'pendingResurfacingList']);
+        await chrome.storage.local.set({ resurfacingShownDate: today });
+        return;
+      }
     }
   } catch {
     // quiet
@@ -66,35 +74,116 @@ async function checkResurfacing(): Promise<void> {
   try {
     const result = await runtime.sendMessage({ type: 'TRIGGER_RESURFACING' });
     if (result?.result) {
-      showBanner(result.result as ResurfacingScore);
+      showBannerList([result.result as ResurfacingScore]);
+      await chrome.storage.local.set({ resurfacingShownDate: new Date().toDateString() });
     }
   } catch {
     // quiet
   }
 }
 
-function showBanner(score: ResurfacingScore): void {
+function showUndoToast(container: HTMLElement, bookmarkId: string, onUndo: () => void): void {
+  const originalHTML = container.innerHTML;
+  const originalDisplay = container.style.display;
+  container.innerHTML = `<div class="resurfacing-toast">已归档 · <button class="resurfacing-toast-undo">撤销</button></div>`;
+  let undone = false;
+
+  container.querySelector('.resurfacing-toast-undo')?.addEventListener('click', async () => {
+    undone = true;
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId, status: 'active' } });
+    container.innerHTML = originalHTML;
+    container.style.display = originalDisplay;
+    onUndo();
+  });
+
+  setTimeout(() => {
+    if (!undone) {
+      container.style.display = 'none';
+    }
+  }, 5000);
+}
+
+function showBannerList(items: ResurfacingScore[]): void {
+  if (items.length === 0) return;
+  // Single item: use the original banner layout
+  if (items.length === 1) {
+    showBanner(items[0]);
+    return;
+  }
+
+  // Multiple items (weekly batch): render a card list inside the banner area
   const banner = document.getElementById('resurfacingBanner');
   if (!banner) return;
 
-  const ageDays = Math.floor(
-    (Date.now() - score.createdAt) / (1000 * 60 * 60 * 24)
-  );
+  banner.innerHTML = `
+    <div class="resurfacing-inner resurfacing-batch">
+      <button class="resurfacing-close" id="resurfacingClose">×</button>
+      <div class="resurfacing-header">
+        <span class="resurfacing-icon">📌</span>
+        <span class="resurfacing-days">本周收藏回顾 · ${items.length} 条</span>
+      </div>
+      <div class="resurfacing-batch-list" id="batchList"></div>
+    </div>
+  `;
+  banner.classList.remove('hidden');
 
-  let daysText: string;
-  if (ageDays >= 180) daysText = '半年前的你，给现在的你留了一句话';
-  else if (ageDays >= 90) daysText = '3个月前的你，给现在的你留了一句话';
-  else if (ageDays >= 60) daysText = '2个月前的你，给现在的你留了一句话';
-  else if (ageDays >= 30) daysText = '1个月前的你，给现在的你留了一句话';
-  else daysText = '以前的你，给现在的你留了一句话';
+  const list = document.getElementById('batchList')!;
+  items.forEach((score, i) => {
+    const row = document.createElement('div');
+    row.className = 'resurfacing-batch-item';
+    row.innerHTML = `
+      <div class="resurfacing-batch-title">${escapeHtml(score.title || score.url)}</div>
+      ${score.note ? `<div class="resurfacing-batch-note">💬 "${escapeHtml(score.note)}"</div>` : ''}
+      <div class="resurfacing-batch-actions">
+        <button class="resurfacing-btn resurfacing-btn-open" data-idx="${i}">打开</button>
+        <button class="resurfacing-btn resurfacing-btn-archive" data-idx="${i}">不再提醒</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll<HTMLButtonElement>('.resurfacing-btn-open').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const score = items[Number(btn.dataset.idx)];
+      runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId: score.bookmarkId } });
+      runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' } }).catch(() => {});
+    });
+  });
+
+  list.querySelectorAll<HTMLButtonElement>('.resurfacing-btn-archive').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const score = items[Number(btn.dataset.idx)];
+      const row = btn.closest('.resurfacing-batch-item') as HTMLElement;
+      runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, status: 'archived' } }).catch(() => {});
+      runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' } }).catch(() => {});
+      if (!row) return;
+      showUndoToast(row, score.bookmarkId, () => {
+        if (document.querySelectorAll('.resurfacing-batch-item').length === 0) banner.classList.add('hidden');
+      });
+    });
+  });
+
+  document.getElementById('resurfacingClose')?.addEventListener('click', () => banner.classList.add('hidden'));
+
+  // Log all shown
+  items.forEach((score) => {
+    runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' } }).catch(() => {});
+  });
+}
+
+function showBanner(score: ResurfacingScore): void {
+  const banner = document.getElementById('resurfacingBanner');
+  if (!banner) return;
 
   const daysEl = document.getElementById('resurfacingDays');
   const titleEl = document.getElementById('resurfacingTitle');
   const noteEl = document.getElementById('resurfacingNote');
 
-  if (daysEl) daysEl.textContent = daysText;
+  if (daysEl) daysEl.textContent = getDaysText(score.createdAt, !!score.note);
   if (titleEl) titleEl.textContent = score.title || score.url;
-  if (noteEl) noteEl.textContent = `💬 "${score.note}"`;
+  if (noteEl) {
+    noteEl.textContent = score.note ? `💬 "${score.note}"` : '这个收藏还没有备注';
+  }
 
   banner.classList.remove('hidden');
 
@@ -102,21 +191,21 @@ function showBanner(score: ResurfacingScore): void {
   document.getElementById('resurfacingOpen')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'opened' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'opened' },
     });
-    runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { url: score.url } });
+    runtime.sendMessage({ type: 'OPEN_BOOKMARK', payload: { bookmarkId: score.bookmarkId } });
     banner.classList.add('hidden');
   });
 
   document.getElementById('resurfacingSnooze')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'snoozed' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' },
     });
     await runtime.sendMessage({
       type: 'UPDATE_META',
       payload: {
-        url: score.url,
+        bookmarkId: score.bookmarkId,
         nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
       },
     });
@@ -126,13 +215,13 @@ function showBanner(score: ResurfacingScore): void {
   document.getElementById('resurfacingArchive')?.addEventListener('click', async () => {
     await runtime.sendMessage({
       type: 'LOG_RESURFACING_ACTION',
-      payload: { url: score.url, action: 'dismissed' },
+      payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'dismissed' },
     });
     await runtime.sendMessage({
       type: 'UPDATE_META',
-      payload: { url: score.url, status: 'archived' },
+      payload: { bookmarkId: score.bookmarkId, status: 'archived' },
     });
-    banner.classList.add('hidden');
+    showUndoToast(banner, score.bookmarkId, () => {});
   });
 
   document.getElementById('resurfacingClose')?.addEventListener('click', () => {
@@ -142,7 +231,7 @@ function showBanner(score: ResurfacingScore): void {
   // Log the show
   runtime.sendMessage({
     type: 'LOG_RESURFACING_ACTION',
-    payload: { url: score.url, action: 'ignored' },
+    payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'ignored' },
   }).catch(() => {});
 }
 

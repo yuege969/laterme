@@ -5,12 +5,12 @@
   "description": "收藏时留一句话，让收藏夹重新活过来",
   "permissions": [
     "bookmarks",
-    "history",
     "storage",
     "alarms",
     "activeTab",
     "scripting",
-    "notifications"
+    "notifications",
+    "favicon"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -24,13 +24,6 @@
       "matches": ["<all_urls>"],
       "js": ["src/content/capture.ts"],
       "run_at": "document_start",
-      "all_frames": false
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/resurface.ts"],
-      "css": ["src/styles/resurfacing.css"],
-      "run_at": "document_idle",
       "all_frames": false
     }
   ],
@@ -52,6 +45,7 @@
       "resources": [
         "content/popup/*",
         "newtab/*",
+        "welcome/*",
         "bookmarks/*",
         "options/*",
         "styles/*",

@@ -1,4 +1,5 @@
 import { showInlinePopup } from './inlinePopup';
+import { extractPageSummary, extractFaviconUrl } from '../utils/extractor';
 
 // ── Deduplication guard ───────────────────────────────────────────────────────
 // The script may be injected more than once on a page (e.g. via
@@ -19,6 +20,8 @@ if (!_win.__laterme_capture) {
       showInlinePopup({
         url: window.location.href,
         title: document.title || window.location.href,
+        favIconUrl: extractFaviconUrl(),
+        summary: extractPageSummary(),
       });
     }
   }, true);
@@ -29,7 +32,7 @@ if (!_win.__laterme_capture) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const msg = message as {
       type: string;
-      payload?: { url: string; title: string; parentId?: string };
+      payload?: { url: string; title: string; parentId?: string; bookmarkId?: string };
     };
 
     if (msg.type === 'SHOW_INLINE_POPUP' && msg.payload) {
@@ -38,7 +41,7 @@ if (!_win.__laterme_capture) {
       // fire — e.g. when preventDefault() doesn't suppress the bookmark).
       const ctrlDAt = _win.__laterme_ctrl_d_at ?? 0;
       if (Date.now() - ctrlDAt > 1000) {
-        showInlinePopup(msg.payload);
+        showInlinePopup({ ...msg.payload, favIconUrl: extractFaviconUrl(), summary: extractPageSummary() });
       }
       sendResponse({ ok: true });
       return false;

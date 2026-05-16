@@ -1,18 +1,12 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
-  color: #374151;
-  background: #fff;
-  width: 360px;
-  min-height: 380px;
+  color: #3d2e1c;
+  background: #fffef9;
+  width: 380px;
+  min-height: 320px;
 }
 
 .popup-container {
@@ -22,198 +16,162 @@ body {
   max-height: 420px;
 }
 
-.popup-header {
-  padding: 20px 24px 12px;
-  border-bottom: 1px solid #f3f4f6;
+/* Page info */
+.page-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
 }
 
-.popup-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #4f46e5;
+.page-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
-.popup-body {
+.page-title {
+  font-size: 13px;
+  color: #a39378;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Note input */
+.note-section {
   flex: 1;
-  padding: 16px 24px;
-  overflow-y: auto;
-}
-
-.input-wrapper {
-  margin-bottom: 16px;
+  padding: 0 20px 14px;
 }
 
 .note-input {
   width: 100%;
-  padding: 12px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 14px;
+  padding: 12px 14px;
+  border: 1.5px solid #e8e0d3;
+  border-radius: 12px;
+  font-size: 15px;
   font-family: inherit;
-  color: #374151;
-  background: #f9fafb;
+  color: #3d2e1c;
+  background: #fefcf7;
   resize: none;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  line-height: 1.6;
 }
-
 .note-input:focus {
-  border-color: #4f46e5;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #c4863b;
+  background: #fffef9;
+  box-shadow: 0 0 0 3px rgba(196,134,59,0.08);
+}
+.note-input::placeholder { color: #c4b89e; font-style: italic; }
+
+.char-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
 }
 
-.note-input::placeholder {
-  color: #9ca3af;
-}
+.char-hint { font-size: 11px; color: #c4b89e; }
 
 .char-count {
-  text-align: right;
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 4px;
+  font-size: 11px;
+  color: #c4b89e;
+  font-variant-numeric: tabular-nums;
 }
+.char-count.warn { color: #d4933c; }
+.char-count.full { color: #c4665a; }
 
-.char-count.warn {
-  color: #f59e0b;
-}
-
-.char-count.full {
-  color: #ef4444;
-}
-
-.intent-group {
-  margin-top: 4px;
-}
+/* Intent pills */
+.intent-section { padding: 0 20px 4px; }
 
 .intent-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #6b7280;
-  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b8a083;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
 }
 
-.intent-options {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+.intent-options { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .intent-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: all 0.2s;
-  background: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  color: #8b7355;
+  background: #faf6ef;
+  border: 1.5px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
 }
-
-.intent-option:hover {
-  border-color: #c7d2fe;
-  background: #f5f3ff;
-}
-
+.intent-option:hover { background: #f5ede0; color: #5c3d1a; }
 .intent-option.selected {
-  border-color: #4f46e5;
-  background: #eef2ff;
+  background: #faf3e8;
+  color: #b8761f;
+  border-color: #d4a574;
 }
+.intent-option input[type="radio"] { display: none; }
+.intent-emoji { font-size: 14px; line-height: 1; }
 
-.intent-option input[type="radio"] {
-  display: none;
-}
-
-.intent-radio {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid #d1d5db;
-  flex-shrink: 0;
-  position: relative;
-  transition: all 0.2s;
-}
-
-.intent-option.selected .intent-radio {
-  border-color: #4f46e5;
-  background: #4f46e5;
-}
-
-.intent-option.selected .intent-radio::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #fff;
-}
-
-.intent-text {
-  font-size: 13px;
-  color: #374151;
-}
-
-.popup-footer {
+/* Footer */
+.footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 12px 24px;
-  border-top: 1px solid #f3f4f6;
-  background: #f9fafb;
+  padding: 10px 20px;
+  border-top: 1px solid #f0eadb;
+  margin-top: 12px;
 }
 
 .footer-link {
   font-size: 12px;
-  color: #9ca3af;
+  color: #b8a083;
   text-decoration: none;
-  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
 }
+.footer-link:hover { color: #8b6914; }
 
-.footer-link:hover {
-  color: #4f46e5;
-}
-
-.footer-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  padding: 8px 20px;
+.btn-save {
+  padding: 8px 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+  background: linear-gradient(135deg, #d4933c, #c4863b);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(180,120,40,0.2);
   transition: all 0.2s;
 }
-
-.btn-ghost {
-  background: transparent;
-  color: #6b7280;
+.btn-save:hover {
+  box-shadow: 0 4px 16px rgba(180,120,40,0.3);
+  transform: translateY(-1px);
 }
+.btn-save:active { transform: scale(0.97); }
 
-.btn-ghost:hover {
-  background: #f3f4f6;
-  color: #374151;
+.key-hint {
+  font-size: 11px;
+  color: #d4c9b5;
+  padding: 4px 20px 12px;
 }
-
-.btn-primary {
-  background: #4f46e5;
-  color: #fff;
-}
-
-.btn-primary:hover {
-  background: #4338ca;
-}
-
-.btn-primary:active {
-  background: #3730a3;
+.key-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
+  color: #b8a083;
+  background: #faf6ef;
+  border-radius: 3px;
+  border: 1px solid #e8e0d3;
+  margin: 0 2px;
 }

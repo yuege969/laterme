@@ -3,7 +3,9 @@ export type IntentType = 'project' | 'learn' | 'problem' | 'temp' | null;
 export type BookmarkStatus = 'active' | 'archived' | 'expired';
 
 export interface BookmarkMeta {
+  bookmarkId: string;
   url: string;
+  title: string;
   note: string;
   intent: IntentType;
   createdAt: number;
@@ -14,12 +16,14 @@ export interface BookmarkMeta {
 }
 
 export interface ResurfacingLog {
+  bookmarkId: string;
   url: string;
   shownAt: number;
   action: 'opened' | 'dismissed' | 'snoozed' | 'ignored';
 }
 
 export interface ResurfacingScore {
+  bookmarkId: string;
   url: string;
   title?: string;
   note: string;
@@ -44,8 +48,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const INTENT_LABELS: Record<NonNullable<IntentType>, string> = {
-  project: '以后做项目时参考',
-  learn: '学习时再看',
-  problem: '解决特定问题时用',
-  temp: '临时查看（3天后过期）',
+  project: '项目参考',
+  learn: '学习中',
+  problem: '解决问题',
+  temp: '临时查看',
+};
+
+export const INTENT_EMOJI: Record<NonNullable<IntentType>, string> = {
+  project: '🛠️',
+  learn: '📖',
+  problem: '🔧',
+  temp: '⏳',
 };

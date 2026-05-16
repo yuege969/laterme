@@ -10,7 +10,7 @@
   <div class="bookmarks-page">
     <header class="page-header">
       <div class="header-left">
-        <h1>📌 LaterMe 书签</h1>
+        <h1>我的知识花园</h1>
         <span id="bookmarkCount" class="bookmark-count"></span>
       </div>
       <div class="header-right">
@@ -24,12 +24,38 @@
       </div>
     </header>
 
+    <!-- Resurfacing Banner -->
+    <div id="resurfacingBanner" class="bm-resurfacing-banner hidden">
+      <div class="bm-resurfacing-inner">
+        <button class="bm-resurfacing-close" id="bmResurfacingClose">&times;</button>
+        <div class="bm-resurfacing-header">
+          <span class="bm-resurfacing-icon">📌</span>
+          <span id="bmResurfacingDays" class="bm-resurfacing-days"></span>
+        </div>
+        <div class="bm-resurfacing-body">
+          <div id="bmResurfacingTitle" class="bm-resurfacing-title"></div>
+          <div id="bmResurfacingNote" class="bm-resurfacing-note"></div>
+        </div>
+        <div class="bm-resurfacing-actions">
+          <button class="bm-resurfacing-btn bm-resurfacing-btn-open" id="bmResurfacingOpen">打开看看</button>
+          <button class="bm-resurfacing-btn bm-resurfacing-btn-snooze" id="bmResurfacingSnooze">下次再说</button>
+          <button class="bm-resurfacing-btn bm-resurfacing-btn-archive" id="bmResurfacingArchive">不再提醒</button>
+        </div>
+      </div>
+    </div>
+
     <div class="filter-bar">
       <button class="filter-btn active" data-filter="all">全部</button>
       <button class="filter-btn" data-filter="note">有备注</button>
       <button class="filter-btn" data-filter="temp">临时</button>
       <button class="filter-btn" data-filter="expired">已过期</button>
       <button class="filter-btn" data-filter="archived">已归档</button>
+      <select id="sortSelect" class="sort-select">
+        <option value="newest">最新收藏</option>
+        <option value="oldest">最早收藏</option>
+        <option value="name">按名称</option>
+      </select>
+      <button class="filter-btn filter-btn-review" id="reviewBtn">🔍 复盘清理</button>
     </div>
 
     <div id="bookmarkList" class="bookmark-list">
@@ -39,6 +65,32 @@
     <div id="emptyState" class="empty-state hidden">
       <p>还没有收藏</p>
       <p class="empty-hint">浏览网页时按 Ctrl+D 收藏并添加备注</p>
+    </div>
+
+    <!-- Review Mode -->
+    <div id="reviewMode" class="review-mode hidden">
+      <div class="review-overlay">
+        <div class="review-card" id="reviewCard">
+          <div class="review-progress-bar">
+            <div class="review-progress-fill" id="reviewProgress"></div>
+          </div>
+          <div class="review-progress-text" id="reviewProgressText"></div>
+          <div class="review-card-body" id="reviewCardBody"></div>
+          <div class="review-card-actions">
+            <button class="review-btn review-btn-open" id="reviewOpen">🔗 打开</button>
+            <button class="review-btn review-btn-keep" id="reviewKeep">✅ 保留</button>
+            <button class="review-btn review-btn-archive" id="reviewArchive">📦 归档</button>
+            <button class="review-btn review-btn-delete" id="reviewDelete">🗑 删除</button>
+          </div>
+          <div class="review-keyboard-hint">↑ 打开 · ← 保留 · ↓ 归档 · → 删除 · Esc 退出</div>
+          <button class="review-exit" id="reviewExit">退出复盘</button>
+        </div>
+      </div>
+      <div class="review-complete hidden" id="reviewComplete">
+        <p class="review-done-title">复盘完成</p>
+        <p class="review-done-stats" id="reviewStats"></p>
+        <button class="review-btn review-btn-keep" id="reviewBack">返回书签列表</button>
+      </div>
     </div>
   </div>
 

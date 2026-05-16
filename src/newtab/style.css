@@ -8,8 +8,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #374151;
-  background: #f9fafb;
+  color: #3d2e1c;
+  background: linear-gradient(180deg, #faf7f2 0%, #f5f0e8 100%);
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -20,63 +20,62 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 48px;
+  gap: 52px;
   width: 100%;
   max-width: 640px;
-  padding: 40px 24px 120px;
+  padding: 60px 24px 140px;
 }
 
 .newtab-main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .clock {
-  font-size: 64px;
-  font-weight: 300;
-  color: #1f2937;
-  letter-spacing: -2px;
+  font-size: 72px;
+  font-weight: 200;
+  color: #2c1810;
+  letter-spacing: -3px;
+  font-variant-numeric: tabular-nums;
 }
 
 .date {
-  font-size: 16px;
-  color: #9ca3af;
-  margin-bottom: 24px;
+  font-size: 15px;
+  color: #b8a083;
+  margin-bottom: 32px;
+  font-weight: 400;
 }
 
 .search-wrapper {
   width: 100%;
-  min-width: 400px;
+  min-width: 360px;
 }
 
 .search-input {
   width: 100%;
-  padding: 14px 20px;
+  padding: 15px 22px;
   font-size: 16px;
   font-family: inherit;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1.5px solid #e0d5c0;
+  border-radius: 14px;
   outline: none;
-  background: #fff;
-  color: #374151;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fffef9;
+  color: #3d2e1c;
+  transition: all 0.25s;
+  box-shadow: 0 2px 12px rgba(60,40,20,0.03);
 }
-
 .search-input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #c4863b;
+  box-shadow: 0 0 0 4px rgba(196,134,59,0.08), 0 4px 20px rgba(60,40,20,0.05);
 }
+.search-input::placeholder { color: #c4b89e; font-style: italic; }
 
-.search-input::placeholder {
-  color: #d1d5db;
-}
-
-/* Resurfacing banner */
+/* Resurfacing banner — warm letter from past self */
 .resurfacing-banner {
   position: fixed;
-  bottom: 24px;
+  bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -84,29 +83,20 @@ body {
   max-width: 520px;
 }
 
-.resurfacing-banner.hidden {
-  display: none;
-}
+.resurfacing-banner.hidden { display: none; }
 
 .resurfacing-inner {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 16px 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f3f4f6;
+  background: #fffef9;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow:
+    0 0 0 1px rgba(180,160,130,0.12),
+    0 8px 40px rgba(60,40,20,0.1);
   position: relative;
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.35s cubic-bezier(0.22,1,0.36,1);
 }
-
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
 }
 
 .resurfacing-close {
@@ -116,94 +106,145 @@ body {
   background: none;
   border: none;
   font-size: 20px;
-  color: #d1d5db;
+  color: #c4b89e;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 4px 8px;
   line-height: 1;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
-
-.resurfacing-close:hover {
-  color: #6b7280;
-}
+.resurfacing-close:hover { color: #8b6914; background: rgba(180,140,80,0.06); }
 
 .resurfacing-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.resurfacing-icon {
-  font-size: 16px;
-}
+.resurfacing-icon { font-size: 20px; }
 
 .resurfacing-days {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 600;
+  color: #b8761f;
 }
 
-.resurfacing-body {
-  margin-bottom: 14px;
-}
+.resurfacing-body { margin-bottom: 16px; }
 
 .resurfacing-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 3px;
+  color: #2c1810;
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .resurfacing-note {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #8b7355;
+  font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.resurfacing-actions {
-  display: flex;
-  gap: 8px;
-}
+.resurfacing-actions { display: flex; gap: 8px; }
 
 .resurfacing-btn {
-  padding: 6px 14px;
+  padding: 8px 18px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 .resurfacing-btn-open {
-  background: #4f46e5;
+  background: linear-gradient(135deg, #d4933c, #c4863b);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(180,120,40,0.2);
 }
-
 .resurfacing-btn-open:hover {
-  background: #4338ca;
+  box-shadow: 0 4px 16px rgba(180,120,40,0.3);
+  transform: translateY(-1px);
 }
 
 .resurfacing-btn-snooze {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #faf6ef;
+  color: #8b7355;
 }
-
-.resurfacing-btn-snooze:hover {
-  background: #e5e7eb;
-  color: #374151;
-}
+.resurfacing-btn-snooze:hover { background: #f5ede0; }
 
 .resurfacing-btn-archive {
   background: transparent;
-  color: #9ca3af;
+  color: #c4b89e;
+}
+.resurfacing-btn-archive:hover { color: #8b7355; }
+
+/* Batch mode */
+.resurfacing-batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
 }
 
-.resurfacing-btn-archive:hover {
-  color: #ef4444;
+.resurfacing-batch-item {
+  background: #faf7f2;
+  border: 1px solid #ebe5d9;
+  border-radius: 10px;
+  padding: 12px 16px;
 }
+
+.resurfacing-batch-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3d2e1c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resurfacing-batch-note {
+  font-size: 12px;
+  color: #a39378;
+  font-style: italic;
+}
+
+.resurfacing-batch-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Undo toast */
+.resurfacing-toast {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+  font-size: 13px;
+  color: #8b7355;
+}
+
+.resurfacing-toast-undo {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c4863b;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.resurfacing-toast-undo:hover { color: #8b6914; }

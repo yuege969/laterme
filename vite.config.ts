@@ -85,6 +85,7 @@ function extensionBuilder(): Plugin {
         { src: 'src/content/popup/index.html', scripts: ['index.ts'] },
         { src: 'src/options/index.html', scripts: ['index.ts'] },
         { src: 'src/newtab/index.html', scripts: ['index.ts'] },
+        { src: 'src/welcome/index.html', scripts: ['index.ts'] },
         { src: 'src/bookmarks/index.html', scripts: ['index.ts'] },
       ];
       for (const { src: htmlPath, scripts } of htmlFiles) {
@@ -107,10 +108,10 @@ function extensionBuilder(): Plugin {
 
       // Copy CSS files
       const cssFiles = [
-        'src/styles/resurfacing.css',
         'src/content/popup/style.css',
         'src/options/style.css',
         'src/newtab/style.css',
+        'src/welcome/style.css',
         'src/bookmarks/style.css',
       ];
       for (const css of cssFiles) {
@@ -153,9 +154,9 @@ function findInputs(): Record<string, string> {
   return {
     'background/index': resolve(root, 'src/background/index.ts'),
     'content/capture': resolve(root, 'src/content/capture.ts'),
-    'content/resurface': resolve(root, 'src/content/resurface.ts'),
     'content/popup/index': resolve(root, 'src/content/popup/index.ts'),
     'newtab/index': resolve(root, 'src/newtab/index.ts'),
+    'welcome/index': resolve(root, 'src/welcome/index.ts'),
     'bookmarks/index': resolve(root, 'src/bookmarks/index.ts'),
     'options/index': resolve(root, 'src/options/index.ts'),
   };

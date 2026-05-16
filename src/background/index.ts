@@ -8,6 +8,7 @@ import {
   updateMeta,
   deleteMeta,
   getAllMetas,
+  bulkPutMetas,
   addResurfacingLog,
   wasShownToday,
   getSettings,
@@ -16,6 +17,36 @@ import {
   importData,
 } from '../storage/db';
 import type { BookmarkMeta } from '../storage/types';
+
+async function importExistingBookmarks(): Promise<number> {
+  const tree = await chrome.bookmarks.getTree();
+  const existingMetas = await getAllMetas();
+  const existingIds = new Set(existingMetas.map((m) => m.bookmarkId));
+
+  const newMetas: BookmarkMeta[] = [];
+  function walk(nodes: chrome.bookmarks.BookmarkTreeNode[]): void {
+    for (const node of nodes) {
+      if (node.url && !existingIds.has(node.id)) {
+        newMetas.push({
+          bookmarkId: node.id,
+          url: node.url,
+          title: node.title || node.url,
+          note: '',
+          intent: null,
+          createdAt: node.dateAdded || Date.now(),
+          lastOpenedAt: node.dateAdded || Date.now(),
+          openCount: 0,
+          status: 'active',
+        });
+      }
+      if (node.children) walk(node.children);
+    }
+  }
+  walk(tree);
+
+  await bulkPutMetas(newMetas);
+  return newMetas.length;
+}
 
 // Init listeners every time the service worker starts (handles restarts too)
 initBookmarkListeners();
@@ -64,8 +95,20 @@ chrome.action.onClicked.addListener(async (tab) => {
   openPopupWindow(popupUrl);
 });
 
-// On first install, do an initial resurfacing check
-runtime.onInstalled.addListener(async () => {
+// On install/update, import existing bookmarks if needed and do an initial resurfacing check
+runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === 'install') {
+    // First install: open welcome page and import existing bookmarks
+    chrome.tabs.create({ url: runtime.getURL('welcome/index.html') });
+    const count = await importExistingBookmarks();
+    if (count > 0) console.log(`LaterMe: imported ${count} existing bookmarks`);
+  } else if (details.reason === 'update') {
+    const existingMetas = await getAllMetas();
+    if (existingMetas.length === 0) {
+      const count = await importExistingBookmarks();
+      if (count > 0) console.log(`LaterMe: imported ${count} existing bookmarks`);
+    }
+  }
   await checkAndNotifyResurfacing();
 });
 
@@ -75,9 +118,11 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   switch (msg.type) {
     case 'SAVE_BOOKMARK_META': {
-      const payload = msg.payload as { url: string; note: string; intent: BookmarkMeta['intent'] };
+      const payload = msg.payload as { bookmarkId: string; url: string; title: string; note: string; intent: BookmarkMeta['intent'] };
       putMeta({
+        bookmarkId: payload.bookmarkId,
         url: payload.url,
+        title: payload.title || '',
         note: payload.note,
         intent: payload.intent,
         createdAt: Date.now(),
@@ -89,8 +134,8 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'GET_BOOKMARK_META': {
-      const { url } = msg.payload as { url: string };
-      getMeta(url).then((meta) => sendResponse({ meta }));
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      getMeta(bookmarkId).then((meta) => sendResponse({ meta }));
       return true;
     }
 
@@ -100,14 +145,14 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'UPDATE_META': {
-      const { url, ...patch } = msg.payload as { url: string } & Partial<BookmarkMeta>;
-      updateMeta(url, patch).then(() => sendResponse({ success: true }));
+      const { bookmarkId, ...patch } = msg.payload as { bookmarkId: string } & Partial<BookmarkMeta>;
+      updateMeta(bookmarkId, patch).then(() => sendResponse({ success: true }));
       return true;
     }
 
     case 'DELETE_META': {
-      const { url } = msg.payload as { url: string };
-      deleteMeta(url).then(() => sendResponse({ success: true }));
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      deleteMeta(bookmarkId).then(() => sendResponse({ success: true }));
       return true;
     }
 
@@ -123,8 +168,9 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'LOG_RESURFACING_ACTION': {
-      const { url, action } = msg.payload as { url: string; action: 'opened' | 'dismissed' | 'snoozed' };
+      const { bookmarkId, url, action } = msg.payload as { bookmarkId: string; url: string; action: 'opened' | 'dismissed' | 'snoozed' };
       addResurfacingLog({
+        bookmarkId,
         url,
         shownAt: Date.now(),
         action,
@@ -154,10 +200,14 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'OPEN_BOOKMARK': {
-      const { url } = msg.payload as { url: string };
-      updateMeta(url, { lastOpenedAt: Date.now() }).then(() => {
-        chrome.tabs.create({ url });
-      });
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      (async () => {
+        await updateMeta(bookmarkId, { lastOpenedAt: Date.now() });
+        const [node] = await chrome.bookmarks.get(bookmarkId);
+        if (node?.url) {
+          chrome.tabs.create({ url: node.url });
+        }
+      })();
       return true;
     }
 
@@ -181,17 +231,27 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'INLINE_SAVE': {
-      const { title, url, parentId, note, intent } = msg.payload as {
-        title: string; url: string; parentId?: string;
+      const { title, url, parentId, bookmarkId, note, intent } = msg.payload as {
+        title: string; url: string; parentId?: string; bookmarkId?: string;
         note: string; intent: BookmarkMeta['intent'];
       };
       (async () => {
         await chrome.storage.local.set({ laterme_popup_created: Date.now() });
-        const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
-        if (parentId) arg.parentId = parentId;
-        try { await chrome.bookmarks.create(arg); } catch { /* already exists */ }
+        let finalBookmarkId = bookmarkId;
+        if (finalBookmarkId) {
+          // Star-icon flow: bookmark already exists, update it
+          try { await chrome.bookmarks.update(finalBookmarkId, { title, url }); } catch { /* keep existing */ }
+        } else {
+          // Ctrl+D / toolbar flow: create a new bookmark
+          const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
+          if (parentId) arg.parentId = parentId;
+          const bookmark = await chrome.bookmarks.create(arg);
+          finalBookmarkId = bookmark.id;
+        }
         await putMeta({
+          bookmarkId: finalBookmarkId,
           url,
+          title,
           note,
           intent,
           createdAt: Date.now(),
@@ -216,21 +276,38 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         note: string;
         intent: BookmarkMeta['intent'];
       };
-      // First create the bookmark natively
-      chrome.bookmarks
-        .create({ title: payload.title, url: payload.url })
-        .then(() => {
-          return putMeta({
-            url: payload.url,
-            note: payload.note,
-            intent: payload.intent,
-            createdAt: Date.now(),
-            lastOpenedAt: Date.now(),
-            openCount: 0,
-            status: 'active',
-          });
-        })
-        .then(() => sendResponse({ success: true }));
+      (async () => {
+        const bookmark = await chrome.bookmarks.create({ title: payload.title, url: payload.url });
+        await putMeta({
+          bookmarkId: bookmark.id,
+          url: payload.url,
+          title: payload.title,
+          note: payload.note,
+          intent: payload.intent,
+          createdAt: Date.now(),
+          lastOpenedAt: Date.now(),
+          openCount: 0,
+          status: 'active',
+        });
+        sendResponse({ success: true });
+      })();
+      return true;
+    }
+
+    case 'IMPORT_BOOKMARKS': {
+      importExistingBookmarks()
+        .then((count) => sendResponse({ count }))
+        .catch((err) => sendResponse({ error: (err as Error).message }));
+      return true;
+    }
+
+    case 'DELETE_BOOKMARK': {
+      const { bookmarkId } = msg.payload as { bookmarkId: string };
+      (async () => {
+        await deleteMeta(bookmarkId);
+        try { await chrome.bookmarks.remove(bookmarkId); } catch { /* already removed */ }
+        sendResponse({ success: true });
+      })();
       return true;
     }
 

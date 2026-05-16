@@ -1,12 +1,10 @@
 import { alarms, tabs, runtime } from '../utils/browser';
 import {
   getAllMetas,
-  addResurfacingLog,
-  wasShownToday,
   getSettings,
   updateMeta,
 } from '../storage/db';
-import { pickBestForResurfacing } from '../utils/matcher';
+import { pickBestForResurfacing, pickTopForResurfacing } from '../utils/matcher';
 import type { ResurfacingScore } from '../storage/types';
 
 const RESURFACING_ALARM = 'resurfacing-check';
@@ -32,9 +30,10 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
   if (!settings.resurfacingEnabled) return;
   if (settings.resurfacingFrequency === 'never') return;
 
-  // Check if already shown today
-  const todayShown = await wasShownToday();
-  if (todayShown) return;
+  // Guard: skip if already scheduled today (use storage flag, not DB log)
+  const today = new Date().toDateString();
+  const existing = await chrome.storage.local.get('pendingResurfacingDate');
+  if ((existing.pendingResurfacingDate as string) === today) return;
 
   // For weekly frequency, only show on Mondays
   if (settings.resurfacingFrequency === 'weekly') {
@@ -42,43 +41,44 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
   }
 
   const allMetas = await getAllMetas();
-  const best = pickBestForResurfacing(allMetas);
-  if (!best) return;
+  const maxAgeMs = settings.maxAgeDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ageCappedMetas = allMetas.filter((m) => (now - m.createdAt) <= maxAgeMs);
 
-  // Store that we showed something today
-  await addResurfacingLog({
-    url: best.url,
-    shownAt: Date.now(),
-    action: 'ignored', // Will be updated when user acts
-  });
+  // weekly mode: pick top 5 for a richer review session
+  const isWeekly = settings.resurfacingFrequency === 'weekly';
+  const picks = isWeekly
+    ? pickTopForResurfacing(ageCappedMetas, 5)
+    : pickTopForResurfacing(ageCappedMetas, 1);
+  if (picks.length === 0) return;
+  const best = picks[0];
 
-  // Try to show on any open new tab page
-  const newTabTabs = await tabs.query({
-    url: ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'],
-  });
-
-  if (newTabTabs.length > 0) {
-    // Send message to content script on new tab
-    for (const tab of newTabTabs) {
-      if (tab.id) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            type: 'SHOW_RESURFACING',
-            payload: best,
-          });
-          break; // Only show on one tab
-        } catch {
-          // Content script might not be ready
-        }
-      }
-    }
-  }
-
-  // Also store for next new tab open
+  // Store for next new tab open (single best + full list for weekly)
   await chrome.storage.local.set({
     pendingResurfacing: best,
-    pendingResurfacingDate: new Date().toDateString(),
+    pendingResurfacingList: picks,
+    pendingResurfacingDate: today,
   });
+
+  // Try to update already-open newtab pages
+  const patterns = ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'];
+  for (const pattern of patterns) {
+    try {
+      const matched = await tabs.query({ url: [pattern] });
+      for (const tab of matched) {
+        if (tab.id) {
+          try {
+            await chrome.tabs.sendMessage(tab.id, {
+              type: 'SHOW_RESURFACING',
+              payload: { best, list: picks },
+            });
+            break;
+          } catch { /* not ready */ }
+        }
+      }
+      if (matched.length > 0) break;
+    } catch { /* pattern not valid in this browser */ }
+  }
 }
 
 async function checkExpiredBookmarks(): Promise<void> {
@@ -90,7 +90,7 @@ async function checkExpiredBookmarks(): Promise<void> {
   for (const meta of allMetas) {
     if (meta.intent === 'temp' && meta.status === 'active') {
       if (now - meta.createdAt > threeDays) {
-        await updateMeta(meta.url, { status: 'expired' });
+        await updateMeta(meta.bookmarkId, { status: 'expired' });
         expiredCount++;
       }
     }
@@ -113,6 +113,9 @@ async function checkExpiredBookmarks(): Promise<void> {
 }
 
 export async function triggerResurfacingManual(): Promise<ResurfacingScore | null> {
-  const allMetas = await getAllMetas();
-  return pickBestForResurfacing(allMetas);
+  const [allMetas, settings] = await Promise.all([getAllMetas(), getSettings()]);
+  const maxAgeMs = settings.maxAgeDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const ageCappedMetas = allMetas.filter((m) => (now - m.createdAt) <= maxAgeMs);
+  return pickBestForResurfacing(ageCappedMetas);
 }

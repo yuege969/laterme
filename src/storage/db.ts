@@ -2,7 +2,7 @@ import type { BookmarkMeta, ResurfacingLog, AppSettings } from './types';
 import { DEFAULT_SETTINGS } from './types';
 
 const DB_NAME = 'LaterMeDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const META_STORE = 'bookmarks_meta';
 const LOG_STORE = 'resurfacing_logs';
 const SETTINGS_STORE = 'settings';
@@ -13,17 +13,25 @@ function openDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      const oldVersion = (event as IDBVersionChangeEvent).oldVersion;
+
       if (!db.objectStoreNames.contains(META_STORE)) {
-        db.createObjectStore(META_STORE, { keyPath: 'url' });
+        // Fresh install: create store with url index
+        const metaStore = db.createObjectStore(META_STORE, { keyPath: 'bookmarkId' });
+        metaStore.createIndex('url', 'url', { unique: false });
+      } else if (oldVersion < 2) {
+        // Upgrade from v1: add url index to existing store
+        req.transaction!.objectStore(META_STORE).createIndex('url', 'url', { unique: false });
       }
+
       if (!db.objectStoreNames.contains(LOG_STORE)) {
         const logStore = db.createObjectStore(LOG_STORE, {
           keyPath: 'id',
           autoIncrement: true,
         });
-        logStore.createIndex('url', 'url', { unique: false });
+        logStore.createIndex('bookmarkId', 'bookmarkId', { unique: false });
         logStore.createIndex('shownAt', 'shownAt', { unique: false });
       }
       if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
@@ -42,10 +50,19 @@ function store(db: IDBDatabase, name: string, mode: IDBTransactionMode = 'readon
 
 // BookmarkMeta CRUD
 
-export async function getMeta(url: string): Promise<BookmarkMeta | undefined> {
+export async function getMeta(bookmarkId: string): Promise<BookmarkMeta | undefined> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const req = store(db, META_STORE).get(url);
+    const req = store(db, META_STORE).get(bookmarkId);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getMetaByUrl(url: string): Promise<BookmarkMeta | undefined> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = store(db, META_STORE).index('url').get(url);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -69,22 +86,33 @@ export async function putMeta(meta: BookmarkMeta): Promise<void> {
   });
 }
 
-export async function deleteMeta(url: string): Promise<void> {
+export async function deleteMeta(bookmarkId: string): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const req = store(db, META_STORE, 'readwrite').delete(url);
+    const req = store(db, META_STORE, 'readwrite').delete(bookmarkId);
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
 }
 
 export async function updateMeta(
-  url: string,
+  bookmarkId: string,
   patch: Partial<BookmarkMeta>
 ): Promise<void> {
-  const existing = await getMeta(url);
-  if (!existing) return;
-  return putMeta({ ...existing, ...patch });
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(META_STORE, 'readwrite');
+    const objStore = tx.objectStore(META_STORE);
+    const getReq = objStore.get(bookmarkId);
+    getReq.onsuccess = () => {
+      const existing = getReq.result as BookmarkMeta | undefined;
+      if (!existing) { resolve(); return; }
+      objStore.put({ ...existing, ...patch });
+    };
+    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export async function getMetasByStatus(
@@ -105,10 +133,10 @@ export async function addResurfacingLog(log: Omit<ResurfacingLog, 'id'>): Promis
   });
 }
 
-export async function getResurfacingLogsByUrl(url: string): Promise<ResurfacingLog[]> {
+export async function getResurfacingLogsByBookmarkId(bookmarkId: string): Promise<ResurfacingLog[]> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const req = store(db, LOG_STORE).index('url').getAll(url);
+    const req = store(db, LOG_STORE).index('bookmarkId').getAll(bookmarkId);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -153,6 +181,19 @@ export async function saveSettings(
     });
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
+  });
+}
+
+export async function bulkPutMetas(metas: BookmarkMeta[]): Promise<void> {
+  if (metas.length === 0) return;
+  const db = await openDB();
+  const tx = db.transaction(META_STORE, 'readwrite');
+  for (const meta of metas) {
+    tx.objectStore(META_STORE).put(meta);
+  }
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 

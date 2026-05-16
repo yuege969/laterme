@@ -5,21 +5,22 @@ interface PopupParams {
   url: string;
   title: string;
   parentId?: string;
+  bookmarkId?: string;
+  favIconUrl?: string;
 }
 
 async function getPopupParams(): Promise<PopupParams | null> {
-  // First check URL params (opened via Ctrl+D interception or star icon)
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   const title = params.get('title');
   const parentId = params.get('parentId') || undefined;
-  if (url) return { url, title: title || url, parentId };
+  const bookmarkId = params.get('bookmarkId') || undefined;
+  if (url) return { url, title: title || url, parentId, bookmarkId };
 
-  // Opened via toolbar icon — query active tab
   try {
     const tabs = await api.tabs.query({ active: true, currentWindow: true });
     if (tabs[0]?.url) {
-      return { url: tabs[0].url, title: tabs[0].title || tabs[0].url };
+      return { url: tabs[0].url, title: tabs[0].title || tabs[0].url, favIconUrl: tabs[0].favIconUrl };
     }
   } catch {
     // Can't query tabs
@@ -30,16 +31,16 @@ async function getPopupParams(): Promise<PopupParams | null> {
 
 let popupParams: PopupParams | null = null;
 
-// Async init
 async function initParams(): Promise<void> {
   popupParams = await getPopupParams();
 }
 
 const noteInput = document.getElementById('noteInput') as HTMLTextAreaElement;
 const charCount = document.getElementById('charCount') as HTMLSpanElement;
-const skipBtn = document.getElementById('skipBtn') as HTMLButtonElement;
 const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
-const intentOptions = document.querySelectorAll('.intent-option');
+const pageTitle = document.getElementById('pageTitle') as HTMLSpanElement;
+const pageFavicon = document.getElementById('pageFavicon') as HTMLImageElement;
+const intentOptions = document.querySelectorAll<HTMLElement>('.intent-option');
 
 let selectedIntent: IntentType = null;
 
@@ -48,8 +49,8 @@ noteInput.addEventListener('input', () => {
   const len = noteInput.value.length;
   charCount.textContent = String(len);
   charCount.className = '';
-  if (len >= 50) charCount.className = 'full';
-  else if (len >= 40) charCount.className = 'warn';
+  if (len >= 120) charCount.className = 'full';
+  else if (len >= 100) charCount.className = 'warn';
 });
 
 // Intent selection
@@ -63,30 +64,18 @@ intentOptions.forEach((option) => {
   });
 });
 
+function getFaviconUrl(params: PopupParams): string {
+  if (params.favIconUrl) return params.favIconUrl;
+  try {
+    return `${new URL(params.url).origin}/favicon.ico`;
+  } catch {
+    return '';
+  }
+}
+
 const POPUP_FLAG = 'laterme_popup_created';
 
-// Skip: just create native bookmark, no meta
-skipBtn.addEventListener('click', async () => {
-  if (!popupParams) {
-    window.close();
-    return;
-  }
-
-  // Set flag so background knows to skip intercepting this creation
-  await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
-
-  try {
-    const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
-    if (popupParams.parentId) createArg.parentId = popupParams.parentId;
-    await api.bookmarks.create(createArg);
-  } catch {
-    // Bookmark might already exist
-  }
-
-  window.close();
-});
-
-// Save: create bookmark + meta
+// Save: create or update bookmark + meta (note and intent are optional)
 saveBtn.addEventListener('click', async () => {
   if (!popupParams) {
     window.close();
@@ -95,51 +84,63 @@ saveBtn.addEventListener('click', async () => {
 
   const note = noteInput.value.trim();
 
-  // Set flag so background knows to skip the "add note" chip
   await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
 
-  try {
-    // Create native bookmark, preserving original folder if intercepted from star icon
-    const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
-    if (popupParams.parentId) createArg.parentId = popupParams.parentId;
-    await api.bookmarks.create(createArg);
-  } catch {
-    // Bookmark might already exist — try to update
+  let bookmarkId: string | undefined = popupParams.bookmarkId;
+  if (bookmarkId) {
+    // Star-icon flow: bookmark already exists, update it
+    try { await api.bookmarks.update(bookmarkId, { title: popupParams.title, url: popupParams.url }); } catch { /* keep existing */ }
+  } else {
+    // Ctrl+D / toolbar flow: create a new bookmark
     try {
-      const existing = await api.bookmarks.search({ url: popupParams.url });
-      if (existing.length > 0) {
-        await api.bookmarks.update(existing[0].id, { title: popupParams.title });
-      }
+      const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
+      if (popupParams.parentId) createArg.parentId = popupParams.parentId;
+      const bookmark = await api.bookmarks.create(createArg);
+      bookmarkId = bookmark.id;
     } catch {
-      // Can't create or update, still save meta
+      try {
+        const existing = await api.bookmarks.search({ url: popupParams.url });
+        if (existing.length > 0) {
+          bookmarkId = existing[0].id;
+          await api.bookmarks.update(existing[0].id, { title: popupParams.title });
+        }
+      } catch {
+        // Can't create or update, still save meta
+      }
     }
   }
 
-  // Save meta via background
-  try {
-    await runtime.sendMessage({
-      type: 'SAVE_BOOKMARK_META',
-      payload: {
-        url: popupParams.url,
-        note,
-        intent: selectedIntent,
-      },
-    });
-  } catch {
-    // Background might not be ready
+  if (bookmarkId) {
+    try {
+      await runtime.sendMessage({
+        type: 'SAVE_BOOKMARK_META',
+        payload: {
+          bookmarkId,
+          url: popupParams.url,
+          title: popupParams.title,
+          note,
+          intent: selectedIntent,
+        },
+      });
+    } catch {
+      // Background might not be ready
+    }
   }
 
   window.close();
 });
 
-// Handle Escape key
+// Escape -- cancel
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    skipBtn.click();
+    window.close();
+  }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    saveBtn.click();
   }
 });
 
-// Init params then focus
 // Open bookmarks page
 document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
   e.preventDefault();
@@ -148,6 +149,16 @@ document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
   window.close();
 });
 
+// Init params then setup page info
 initParams().then(() => {
+  if (popupParams) {
+    pageTitle.textContent = popupParams.title || popupParams.url;
+    const favUrl = getFaviconUrl(popupParams);
+    if (favUrl) {
+      pageFavicon.src = favUrl;
+    } else {
+      pageFavicon.style.display = 'none';
+    }
+  }
   noteInput.focus();
 });
