@@ -45,17 +45,19 @@
     </div>
 
     <div class="filter-bar">
-      <button class="filter-btn active" data-filter="all">全部</button>
-      <button class="filter-btn" data-filter="note">有备注</button>
-      <button class="filter-btn" data-filter="temp">临时</button>
-      <button class="filter-btn" data-filter="expired">已过期</button>
-      <button class="filter-btn" data-filter="archived">已归档</button>
-      <select id="sortSelect" class="sort-select">
-        <option value="newest">最新收藏</option>
-        <option value="oldest">最早收藏</option>
-        <option value="name">按名称</option>
-      </select>
-      <button class="filter-btn filter-btn-review" id="reviewBtn">🔍 复盘清理</button>
+      <div class="filter-row">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="note">有备注</button>
+        <button class="filter-btn" data-filter="expired">已过期</button>
+        <button class="filter-btn" data-filter="archived">已归档</button>
+        <select id="sortSelect" class="sort-select">
+          <option value="newest">最新收藏</option>
+          <option value="oldest">最早收藏</option>
+          <option value="name">按名称</option>
+        </select>
+        <button class="filter-btn filter-btn-review" id="reviewBtn">🔍 复盘清理</button>
+      </div>
+      <div id="intentFilterRow" class="intent-filter-row"></div>
     </div>
 
     <div id="bookmarkList" class="bookmark-list">

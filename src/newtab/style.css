@@ -1,3 +1,35 @@
+/* ── Theme tokens ──────────────────────────────────────────────────── */
+:root {
+  --bg-from:    #faf7f2;
+  --bg-to:      #f5f0e8;
+  --surface:    #fffef9;
+  --border:     #e0d5c0;
+  --text:       #3d2e1c;
+  --text-title: #2c1810;
+  --text-2:     #b8a083;
+  --text-3:     #c4b89e;
+  --text-4:     #d4c9b5;
+  --accent:     #c4863b;
+  --accent-hover: #b8761f;
+  --accent-light: #d4933c;
+  --clock-color: #2c1810;
+  --surf-bg:    #fffef9;
+  --surf-bdr:   rgba(180,160,130,0.12);
+  --surf-shadow: rgba(60,40,20,0.1);
+  --surf-days-color: #b8761f;
+  --surf-title-color: #2c1810;
+  --surf-note-color: #8b7355;
+  --btn-muted-bg: #faf6ef;
+  --btn-muted-fg: #8b7355;
+  --btn-muted-hover: #f5ede0;
+  --batch-item-bg: #faf7f2;
+  --batch-item-bdr: #ebe5d9;
+  --toast-undo: #c4863b;
+}
+
+
+
+/* ── Reset ──────────────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -8,8 +40,8 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #3d2e1c;
-  background: linear-gradient(180deg, #faf7f2 0%, #f5f0e8 100%);
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg-from) 0%, var(--bg-to) 100%);
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -36,14 +68,14 @@ body {
 .clock {
   font-size: 72px;
   font-weight: 200;
-  color: #2c1810;
+  color: var(--clock-color);
   letter-spacing: -3px;
   font-variant-numeric: tabular-nums;
 }
 
 .date {
   font-size: 15px;
-  color: #b8a083;
+  color: var(--text-2);
   margin-bottom: 32px;
   font-weight: 400;
 }
@@ -58,21 +90,21 @@ body {
   padding: 15px 22px;
   font-size: 16px;
   font-family: inherit;
-  border: 1.5px solid #e0d5c0;
+  border: 1.5px solid var(--border);
   border-radius: 14px;
   outline: none;
-  background: #fffef9;
-  color: #3d2e1c;
+  background: var(--surface);
+  color: var(--text);
   transition: all 0.25s;
   box-shadow: 0 2px 12px rgba(60,40,20,0.03);
 }
 .search-input:focus {
-  border-color: #c4863b;
+  border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(196,134,59,0.08), 0 4px 20px rgba(60,40,20,0.05);
 }
-.search-input::placeholder { color: #c4b89e; font-style: italic; }
+.search-input::placeholder { color: var(--text-3); font-style: italic; }
 
-/* Resurfacing banner — warm letter from past self */
+/* Resurfacing banner */
 .resurfacing-banner {
   position: fixed;
   bottom: 28px;
@@ -86,12 +118,12 @@ body {
 .resurfacing-banner.hidden { display: none; }
 
 .resurfacing-inner {
-  background: #fffef9;
+  background: var(--surf-bg);
   border-radius: 16px;
   padding: 20px 24px;
   box-shadow:
-    0 0 0 1px rgba(180,160,130,0.12),
-    0 8px 40px rgba(60,40,20,0.1);
+    0 0 0 1px var(--surf-bdr),
+    0 8px 40px var(--surf-shadow);
   position: relative;
   animation: slideUp 0.35s cubic-bezier(0.22,1,0.36,1);
 }
@@ -106,14 +138,14 @@ body {
   background: none;
   border: none;
   font-size: 20px;
-  color: #c4b89e;
+  color: var(--text-3);
   cursor: pointer;
   padding: 4px 8px;
   line-height: 1;
   border-radius: 6px;
   transition: all 0.2s;
 }
-.resurfacing-close:hover { color: #8b6914; background: rgba(180,140,80,0.06); }
+.resurfacing-close:hover { color: var(--accent-hover); background: rgba(180,140,80,0.06); }
 
 .resurfacing-header {
   display: flex;
@@ -127,7 +159,7 @@ body {
 .resurfacing-days {
   font-size: 14px;
   font-weight: 600;
-  color: #b8761f;
+  color: var(--surf-days-color);
 }
 
 .resurfacing-body { margin-bottom: 16px; }
@@ -135,7 +167,7 @@ body {
 .resurfacing-title {
   font-size: 16px;
   font-weight: 600;
-  color: #2c1810;
+  color: var(--surf-title-color);
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -144,7 +176,7 @@ body {
 
 .resurfacing-note {
   font-size: 14px;
-  color: #8b7355;
+  color: var(--surf-note-color);
   font-style: italic;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,7 +197,7 @@ body {
 }
 
 .resurfacing-btn-open {
-  background: linear-gradient(135deg, #d4933c, #c4863b);
+  background: linear-gradient(135deg, var(--accent-light), var(--accent));
   color: #fff;
   box-shadow: 0 2px 8px rgba(180,120,40,0.2);
 }
@@ -175,16 +207,16 @@ body {
 }
 
 .resurfacing-btn-snooze {
-  background: #faf6ef;
-  color: #8b7355;
+  background: var(--btn-muted-bg);
+  color: var(--btn-muted-fg);
 }
-.resurfacing-btn-snooze:hover { background: #f5ede0; }
+.resurfacing-btn-snooze:hover { background: var(--btn-muted-hover); }
 
 .resurfacing-btn-archive {
   background: transparent;
-  color: #c4b89e;
+  color: var(--text-3);
 }
-.resurfacing-btn-archive:hover { color: #8b7355; }
+.resurfacing-btn-archive:hover { color: var(--surf-note-color); }
 
 /* Batch mode */
 .resurfacing-batch-list {
@@ -197,8 +229,8 @@ body {
 }
 
 .resurfacing-batch-item {
-  background: #faf7f2;
-  border: 1px solid #ebe5d9;
+  background: var(--batch-item-bg);
+  border: 1px solid var(--batch-item-bdr);
   border-radius: 10px;
   padding: 12px 16px;
 }
@@ -206,7 +238,7 @@ body {
 .resurfacing-batch-title {
   font-size: 14px;
   font-weight: 600;
-  color: #3d2e1c;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -214,7 +246,7 @@ body {
 
 .resurfacing-batch-note {
   font-size: 12px;
-  color: #a39378;
+  color: var(--text-2);
   font-style: italic;
 }
 
@@ -232,7 +264,7 @@ body {
   gap: 8px;
   padding: 12px 0;
   font-size: 13px;
-  color: #8b7355;
+  color: var(--surf-note-color);
 }
 
 .resurfacing-toast-undo {
@@ -240,11 +272,11 @@ body {
   border: none;
   font-size: 13px;
   font-weight: 600;
-  color: #c4863b;
+  color: var(--toast-undo);
   cursor: pointer;
   padding: 0;
   font-family: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.resurfacing-toast-undo:hover { color: #8b6914; }
+.resurfacing-toast-undo:hover { color: var(--accent-hover); }

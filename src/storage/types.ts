@@ -1,4 +1,4 @@
-export type IntentType = 'project' | 'learn' | 'problem' | 'temp' | null;
+export type IntentType = string | null;
 
 export type BookmarkStatus = 'active' | 'archived' | 'expired';
 
@@ -38,6 +38,7 @@ export interface AppSettings {
   resurfacingFrequency: 'daily' | 'weekly' | 'never';
   maxAgeDays: number;
   lastResurfacingDate: string;
+  customIntents: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -45,18 +46,44 @@ export const DEFAULT_SETTINGS: AppSettings = {
   resurfacingFrequency: 'daily',
   maxAgeDays: 365,
   lastResurfacingDate: '',
+  customIntents: [],
 };
 
-export const INTENT_LABELS: Record<NonNullable<IntentType>, string> = {
+export const INTENT_LABELS: Record<string, string> = {
   project: '项目参考',
-  learn: '学习中',
+  learn: '学习阅读',
   problem: '解决问题',
   temp: '临时查看',
+  idea: '灵感想法',
+  buy: '稍后购买',
+  fun: '娱乐消遣',
+  reading: '待读文章',
 };
 
-export const INTENT_EMOJI: Record<NonNullable<IntentType>, string> = {
+export const INTENT_EMOJI: Record<string, string> = {
   project: '🛠️',
   learn: '📖',
   problem: '🔧',
   temp: '⏳',
+  idea: '💡',
+  buy: '🛒',
+  fun: '🎬',
+  reading: '📰',
 };
+
+export interface PresetIntent {
+  value: string;
+  label: string;
+  emoji: string;
+}
+
+export const PRESET_INTENTS: PresetIntent[] = [
+  { value: 'project', label: '项目参考', emoji: '🛠️' },
+  { value: 'learn',   label: '学习阅读', emoji: '📖' },
+  { value: 'problem', label: '解决问题', emoji: '🔧' },
+  { value: 'temp',    label: '临时查看', emoji: '⏳' },
+  { value: 'idea',    label: '灵感想法', emoji: '💡' },
+  { value: 'buy',     label: '稍后购买', emoji: '🛒' },
+  { value: 'fun',     label: '娱乐消遣', emoji: '🎬' },
+  { value: 'reading', label: '待读文章', emoji: '📰' },
+];

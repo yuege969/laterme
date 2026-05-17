@@ -36,8 +36,6 @@ async function loadData(): Promise<void> {
   const metas = (metasResult?.metas || []) as BookmarkMeta[];
   const metaMap = new Map(metas.map((m) => [m.bookmarkId, m]));
 
-  // Flatten bookmark tree, tracking folder paths.
-  // Skip Chrome's system root folders — they aren't the user's own organization.
   const SYSTEM_ROOTS = new Set(['书签栏', '其他书签', 'Bookmarks bar', 'Other bookmarks']);
   const flat: { bookmark: chrome.bookmarks.BookmarkTreeNode; folderPath: string }[] = [];
   function walk(nodes: chrome.bookmarks.BookmarkTreeNode[], parents: string[]): void {
@@ -61,27 +59,60 @@ async function loadData(): Promise<void> {
   }));
 
   document.getElementById('bookmarkCount')!.textContent = `${allItems.length} 个书签`;
+  buildIntentFilters();
   render();
+}
+
+function buildIntentFilters(): void {
+  const row = document.getElementById('intentFilterRow');
+  if (!row) return;
+
+  // Collect used intents in order of frequency
+  const counts = new Map<string, number>();
+  for (const item of allItems) {
+    if (item.meta?.intent && item.meta.status === 'active') {
+      counts.set(item.meta.intent, (counts.get(item.meta.intent) || 0) + 1);
+    }
+  }
+
+  if (counts.size === 0) {
+    row.innerHTML = '';
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = '';
+
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  row.innerHTML = sorted.map(([intent]) => {
+    const emoji = INTENT_EMOJI[intent] || '🏷️';
+    const label = INTENT_LABELS[intent] || intent;
+    const filterVal = `intent:${intent}`;
+    const active = currentFilter === filterVal ? ' active' : '';
+    return `<button class="filter-btn${active}" data-filter="${escapeHtml(filterVal)}">${emoji} ${escapeHtml(label)}</button>`;
+  }).join('');
+
+  row.querySelectorAll<HTMLElement>('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter || 'all';
+      render();
+    });
+  });
 }
 
 function getFilteredItems(): DisplayItem[] {
   let items = allItems;
 
-  switch (currentFilter) {
-    case 'note':
-      items = items.filter((i) => i.meta && i.meta.note);
-      break;
-    case 'temp':
-      items = items.filter(
-        (i) => i.meta?.intent === 'temp' && i.meta?.status === 'active'
-      );
-      break;
-    case 'expired':
-      items = items.filter((i) => i.meta?.status === 'expired');
-      break;
-    case 'archived':
-      items = items.filter((i) => i.meta?.status === 'archived');
-      break;
+  if (currentFilter === 'note') {
+    items = items.filter((i) => i.meta && i.meta.note);
+  } else if (currentFilter === 'expired') {
+    items = items.filter((i) => i.meta?.status === 'expired');
+  } else if (currentFilter === 'archived') {
+    items = items.filter((i) => i.meta?.status === 'archived');
+  } else if (currentFilter.startsWith('intent:')) {
+    const intent = currentFilter.slice(7);
+    items = items.filter((i) => i.meta?.intent === intent && i.meta?.status === 'active');
   }
 
   if (searchQuery) {
@@ -117,8 +148,6 @@ function getNoteAgeClass(ts: number): string {
 }
 
 function getFaviconUrl(url: string): string {
-  // Use the browser's built-in favicon cache via the extension API.
-  // This avoids leaking URLs to third-party services.
   try {
     const pageUrl = encodeURIComponent(url);
     return `chrome-extension://${chrome.runtime.id}/_favicon/?pageUrl=${pageUrl}&size=32`;
@@ -132,6 +161,13 @@ function getStatusClass(meta: BookmarkMeta | null): string {
   if (meta.status === 'expired') return 'card-expired';
   if (meta.status === 'archived') return 'card-archived';
   return '';
+}
+
+function getIntentDisplay(intent: IntentType): string {
+  if (!intent) return '';
+  const emoji = INTENT_EMOJI[intent] || '🏷️';
+  const label = INTENT_LABELS[intent] || intent;
+  return `<span class="bm-intent">${escapeHtml(emoji)} ${escapeHtml(label)}</span>`;
 }
 
 function renderCard(bookmark: chrome.bookmarks.BookmarkTreeNode, meta: BookmarkMeta | null): string {
@@ -149,7 +185,7 @@ function renderCard(bookmark: chrome.bookmarks.BookmarkTreeNode, meta: BookmarkM
           <span class="bm-note-text">"${escapeHtml(meta!.note)}"</span>
         </div>
         <div class="bm-meta-right">
-          ${meta!.intent ? `<span class="bm-intent ${meta!.intent}">${INTENT_EMOJI[meta!.intent] || ''} ${INTENT_LABELS[meta!.intent] || ''}</span>` : ''}
+          ${meta!.intent ? getIntentDisplay(meta!.intent) : ''}
           <span class="bm-time ${ageCls}">${formatTime(meta!.createdAt)}</span>
         </div>
       </div>`;
@@ -158,7 +194,7 @@ function renderCard(bookmark: chrome.bookmarks.BookmarkTreeNode, meta: BookmarkM
       <div class="bm-meta-row">
         <div class="bm-note bm-note-empty" data-bm-id="${escapeHtml(bookmarkId)}" data-url="${escapeHtml(bmUrl)}">+ 添加备注</div>
         <div class="bm-meta-right">
-          ${meta?.intent ? `<span class="bm-intent ${meta.intent}">${INTENT_EMOJI[meta.intent] || ''} ${INTENT_LABELS[meta.intent] || ''}</span>` : ''}
+          ${meta?.intent ? getIntentDisplay(meta.intent) : ''}
         </div>
       </div>`;
   }
@@ -194,7 +230,6 @@ function render(): void {
 
   empty.classList.add('hidden');
 
-  // Group items by folder path
   const groups = new Map<string, DisplayItem[]>();
   for (const item of items) {
     const key = item.folderPath || '未分类';
@@ -202,7 +237,6 @@ function render(): void {
     groups.get(key)!.push(item);
   }
 
-  // Sort groups: root first, then alphabetically
   const sortedGroups = [...groups.entries()].sort((a, b) => {
     if (a[0] === '未分类') return -1;
     if (b[0] === '未分类') return 1;
@@ -235,12 +269,10 @@ function render(): void {
 
   list.innerHTML = html;
 
-  // Bind fallback for broken favicons
   list.querySelectorAll<HTMLImageElement>('img[data-fallback="hide"]').forEach((img) => {
     img.addEventListener('error', () => { img.style.display = 'none'; });
   });
 
-  // Bind folder collapse/expand
   list.querySelectorAll('.folder-header').forEach((header) => {
     header.addEventListener('click', () => {
       const folderId = (header as HTMLElement).dataset.folder!;
@@ -251,7 +283,6 @@ function render(): void {
     });
   });
 
-  // Bind click handlers -- open bookmark
   list.querySelectorAll('.bm-card').forEach((el) => {
     el.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.bm-note')) return;
@@ -262,7 +293,6 @@ function render(): void {
     });
   });
 
-  // Bind note click handlers -- inline edit
   list.querySelectorAll('.bm-note').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -278,7 +308,6 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
   const meta = allItems.find((i) => i.bookmark.id === bookmarkId)?.meta;
   const currentNote = meta?.note || '';
 
-  // Replace element with inline editor
   const wrapper = document.createElement('div');
   wrapper.className = 'bm-note-editor';
   wrapper.innerHTML = `
@@ -305,7 +334,6 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
 
   const cleanup = () => {
     wrapper.replaceWith(el);
-    // Re-bind the click handler
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       showNoteEditor(el, bookmarkId, url);
@@ -329,22 +357,14 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
       const bm = allItems.find((i) => i.bookmark.id === bookmarkId);
       await runtime.sendMessage({
         type: 'SAVE_BOOKMARK_META',
-        payload: {
-          bookmarkId,
-          url: url || '',
-          title: bm?.bookmark.title || '',
-          note: newNote,
-          intent: null,
-        },
+        payload: { bookmarkId, url: url || '', title: bm?.bookmark.title || '', note: newNote, intent: null },
       });
     }
     await loadData();
   });
 
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      cleanup();
-    }
+    if (e.key === 'Escape') cleanup();
     if (e.key === 'Enter') {
       e.preventDefault();
       (saveBtn as HTMLButtonElement).click();
@@ -352,14 +372,14 @@ function showNoteEditor(el: HTMLElement, bookmarkId: string, url: string): void 
   });
 }
 
-// Filter buttons
-document.querySelectorAll('.filter-btn').forEach((btn) => {
+// Static filter buttons (all, note, expired, archived)
+document.querySelectorAll('.filter-btn[data-filter]').forEach((btn) => {
+  const filter = (btn as HTMLElement).dataset.filter || '';
+  if (filter.startsWith('intent:')) return; // handled by buildIntentFilters
   btn.addEventListener('click', () => {
-    document
-      .querySelectorAll('.filter-btn')
-      .forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
-    currentFilter = (btn as HTMLElement).dataset.filter || 'all';
+    currentFilter = filter;
     render();
   });
 });
@@ -538,16 +558,9 @@ let reviewStats = { kept: 0, archived: 0, deleted: 0 };
 
 function getReviewCandidates(): ReviewCandidate[] {
   return allItems
-    .filter((item) => {
-      if (!item.meta) return false;
-      if (item.meta.status !== 'active') return false;
-      return true;
-    })
+    .filter((item) => item.meta && item.meta.status === 'active')
     .sort((a, b) => a.meta!.createdAt - b.meta!.createdAt)
-    .map((item) => ({
-      bookmark: item.bookmark,
-      meta: item.meta!,
-    }));
+    .map((item) => ({ bookmark: item.bookmark, meta: item.meta! }));
 }
 
 function openReviewMode(): void {
@@ -591,13 +604,9 @@ function showReviewCard(): void {
   document.getElementById('reviewProgress')!.style.width = `${progress}%`;
   document.getElementById('reviewProgressText')!.textContent = `已处理 ${reviewIndex}/${total}`;
 
-  // Resolve intent label
-  const intentLabels: Record<string, string> = {
-    project: '项目参考',
-    learn: '学习中',
-    problem: '解决问题',
-    temp: '临时查看',
-  };
+  const intentTag = meta.intent
+    ? `<span class="review-meta-tag ${meta.intent === 'temp' ? 'warn' : ''}">${INTENT_EMOJI[meta.intent] || '🏷️'} ${INTENT_LABELS[meta.intent] || meta.intent}</span>`
+    : '';
 
   document.getElementById('reviewCardBody')!.innerHTML = `
     <div class="review-card-title">
@@ -615,11 +624,10 @@ function showReviewCard(): void {
       ${meta.openCount === 0
         ? '<span class="review-meta-tag old">⚠️ 从未打开</span>'
         : `<span class="review-meta-tag">👁 ${meta.openCount} 次访问 · ${lastOpenDays}</span>`}
-      ${meta.intent ? `<span class="review-meta-tag ${meta.intent === 'temp' ? 'warn' : ''}">${intentLabels[meta.intent] || meta.intent}</span>` : ''}
+      ${intentTag}
     </div>
   `;
 
-  // Bind fallback for broken favicon (CSP-safe)
   document.querySelector<HTMLImageElement>('.review-card-favicon[data-fallback="hide"]')
     ?.addEventListener('error', (e) => { (e.target as HTMLImageElement).style.display = 'none'; });
 }
@@ -638,17 +646,11 @@ async function reviewAction(action: 'open' | 'keep' | 'archive' | 'delete'): Pro
       break;
     case 'archive':
       reviewStats.archived++;
-      await runtime.sendMessage({
-        type: 'UPDATE_META',
-        payload: { bookmarkId, status: 'archived' },
-      });
+      await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId, status: 'archived' } });
       break;
     case 'delete':
       reviewStats.deleted++;
-      await runtime.sendMessage({
-        type: 'DELETE_BOOKMARK',
-        payload: { bookmarkId },
-      });
+      await runtime.sendMessage({ type: 'DELETE_BOOKMARK', payload: { bookmarkId } });
       break;
   }
 
@@ -666,24 +668,13 @@ function showReviewComplete(): void {
 }
 
 function onReviewKeydown(e: KeyboardEvent): void {
-  if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    reviewAction('open');
-  } else if (e.key === 'ArrowLeft') {
-    e.preventDefault();
-    reviewAction('keep');
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    reviewAction('archive');
-  } else if (e.key === 'ArrowRight') {
-    e.preventDefault();
-    reviewAction('delete');
-  } else if (e.key === 'Escape') {
-    closeReviewMode();
-  }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); reviewAction('open'); }
+  else if (e.key === 'ArrowLeft')  { e.preventDefault(); reviewAction('keep'); }
+  else if (e.key === 'ArrowDown')  { e.preventDefault(); reviewAction('archive'); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); reviewAction('delete'); }
+  else if (e.key === 'Escape')     { closeReviewMode(); }
 }
 
-// Event bindings
 document.getElementById('reviewBtn')?.addEventListener('click', openReviewMode);
 document.getElementById('reviewExit')?.addEventListener('click', closeReviewMode);
 document.getElementById('reviewBack')?.addEventListener('click', closeReviewMode);
