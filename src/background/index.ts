@@ -265,8 +265,11 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'OPEN_BOOKMARKS_PAGE': {
-      chrome.tabs.create({ url: runtime.getURL('bookmarks/index.html') });
-      return false;
+      (async () => {
+        await chrome.tabs.create({ url: runtime.getURL('bookmarks/index.html') });
+        sendResponse({ ok: true });
+      })();
+      return true;
     }
 
     case 'CREATE_BOOKMARK': {

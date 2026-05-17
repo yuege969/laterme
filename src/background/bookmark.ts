@@ -18,11 +18,13 @@ export function initBookmarkListeners(): void {
       }
     } catch { /* quiet */ }
 
-    // Star-icon bookmark — keep it (Chrome already created it).
-    // We'll attach meta after the user confirms via the inline popup.
     const url = bookmark.url;
     const title = bookmark.title || url;
     const parentId = bookmark.parentId || '';
+
+    // Remove the native bookmark immediately to suppress Chrome's default
+    // "Bookmark added" bubble. Our inline popup handles the save instead.
+    try { await bookmarks.remove(id); } catch { /* quiet */ }
 
     // Locate the active tab once; reuse for both scripting and messaging.
     let tabId: number | undefined;
@@ -32,8 +34,9 @@ export function initBookmarkListeners(): void {
     } catch { /* quiet */ }
 
     if (tabId) {
-      // Show our inline popup
-      const popupPayload = { url, title, parentId, bookmarkId: id };
+      // Show our inline popup (bookmarkId omitted — removed above, will be
+      // re-created by the INLINE_SAVE handler when the user confirms).
+      const popupPayload = { url, title, parentId };
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'SHOW_INLINE_POPUP',

@@ -16,8 +16,9 @@ const CSS = `
 :host {
   all: initial;
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 2147483647;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -37,7 +38,7 @@ const CSS = `
 }
 
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+  from { opacity: 0; transform: scale(0.95); }
 }
 
 *, *::before, *::after {
