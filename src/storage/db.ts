@@ -179,7 +179,12 @@ export async function saveSettings(
       key: 'app',
       value: merged,
     });
-    req.onsuccess = () => resolve();
+    req.onsuccess = async () => {
+      // Sync settings to chrome.storage.local so content scripts can
+      // read them without needing IndexedDB access.
+      await chrome.storage.local.set({ settings: merged });
+      resolve();
+    };
     req.onerror = () => reject(req.error);
   });
 }

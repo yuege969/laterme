@@ -1,5 +1,7 @@
 import { runtime, api } from '../../utils/browser';
+import { getSettings, saveSettings } from '../../storage/db';
 import type { IntentType } from '../../storage/types';
+import { PRESET_INTENTS } from '../../storage/types';
 
 interface PopupParams {
   url: string;
@@ -35,12 +37,13 @@ async function initParams(): Promise<void> {
   popupParams = await getPopupParams();
 }
 
-const noteInput = document.getElementById('noteInput') as HTMLTextAreaElement;
-const charCount = document.getElementById('charCount') as HTMLSpanElement;
-const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement;
-const pageTitle = document.getElementById('pageTitle') as HTMLSpanElement;
-const pageFavicon = document.getElementById('pageFavicon') as HTMLImageElement;
-const intentOptions = document.querySelectorAll<HTMLElement>('.intent-option');
+const noteInput       = document.getElementById('noteInput')       as HTMLTextAreaElement;
+const charCount       = document.getElementById('charCount')       as HTMLSpanElement;
+const saveBtn         = document.getElementById('saveBtn')         as HTMLButtonElement;
+const pageTitle       = document.getElementById('pageTitle')       as HTMLSpanElement;
+const pageFavicon     = document.getElementById('pageFavicon')     as HTMLImageElement;
+const intentOptions   = document.querySelectorAll<HTMLElement>('.intent-option');
+const customIntentInput = document.getElementById('customIntentInput') as HTMLInputElement;
 
 let selectedIntent: IntentType = null;
 
@@ -53,16 +56,85 @@ noteInput.addEventListener('input', () => {
   else if (len >= 100) charCount.className = 'warn';
 });
 
-// Intent selection
+// Intent pill selection — clears custom input
 intentOptions.forEach((option) => {
   option.addEventListener('click', () => {
     intentOptions.forEach((o) => o.classList.remove('selected'));
+    document.querySelectorAll('.intent-option-custom').forEach((o) => o.classList.remove('selected'));
     option.classList.add('selected');
     const radio = option.querySelector('input[type="radio"]') as HTMLInputElement;
     radio.checked = true;
-    selectedIntent = radio.value as IntentType;
+    selectedIntent = radio.value;
+    customIntentInput.value = '';
   });
 });
+
+// Custom intent input — clears pill selection
+customIntentInput.addEventListener('input', () => {
+  const val = customIntentInput.value.trim();
+  if (val) {
+    intentOptions.forEach((o) => {
+      o.classList.remove('selected');
+      (o.querySelector('input[type="radio"]') as HTMLInputElement).checked = false;
+    });
+    document.querySelectorAll('.intent-option-custom').forEach((o) => o.classList.remove('selected'));
+    selectedIntent = val;
+  } else {
+    selectedIntent = null;
+  }
+});
+
+// Custom intent pills
+const intentContainer = document.getElementById('intentOptions')!;
+
+function renderCustomPill(intent: string): HTMLElement {
+  const pill = document.createElement('label');
+  pill.className = 'intent-option intent-option-custom';
+  pill.dataset.intent = intent;
+  pill.innerHTML = `<span class="intent-emoji">🏷️</span><span>${intent}</span><span class="intent-delete">&times;</span>`;
+  pill.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).classList.contains('intent-delete')) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeCustomIntent(intent);
+      pill.remove();
+      if (selectedIntent === intent) selectedIntent = null;
+      return;
+    }
+    intentOptions.forEach((o) => o.classList.remove('selected'));
+    document.querySelectorAll('.intent-option-custom').forEach((o) => o.classList.remove('selected'));
+    customIntentInput.value = '';
+    pill.classList.add('selected');
+    selectedIntent = intent;
+  });
+  return pill;
+}
+
+async function removeCustomIntent(intent: string): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const customs = (settings.customIntents || []).filter((c) => c !== intent);
+    await saveSettings({ customIntents: customs });
+  } catch { /* quiet */ }
+}
+
+async function persistCustomIntent(intent: string): Promise<void> {
+  try {
+    const settings = await getSettings();
+    const customs = settings.customIntents || [];
+    if (!customs.includes(intent)) {
+      customs.push(intent);
+      await saveSettings({ customIntents: customs });
+    }
+  } catch { /* quiet */ }
+}
+
+function loadCustomPills(): void {
+  getSettings().then((settings) => {
+    const customs = (settings.customIntents || []).filter((c) => !PRESET_INTENTS.some((p) => p.value === c));
+    customs.forEach((intent) => { intentContainer.appendChild(renderCustomPill(intent)); });
+  }).catch(() => {});
+}
 
 function getFaviconUrl(params: PopupParams): string {
   if (params.favIconUrl) return params.favIconUrl;
@@ -75,23 +147,29 @@ function getFaviconUrl(params: PopupParams): string {
 
 const POPUP_FLAG = 'laterme_popup_created';
 
-// Save: create or update bookmark + meta (note and intent are optional)
+// Save: create or update bookmark + meta
 saveBtn.addEventListener('click', async () => {
   if (!popupParams) {
     window.close();
     return;
   }
 
+  // Resolve final intent value
+  const customVal = customIntentInput.value.trim();
+  const intent: IntentType = customVal || selectedIntent;
   const note = noteInput.value.trim();
+
+  // Persist new custom intent
+  if (customVal && !PRESET_INTENTS.some((p) => p.value === customVal)) {
+    await persistCustomIntent(customVal);
+  }
 
   await chrome.storage.local.set({ [POPUP_FLAG]: Date.now() });
 
   let bookmarkId: string | undefined = popupParams.bookmarkId;
   if (bookmarkId) {
-    // Star-icon flow: bookmark already exists, update it
     try { await api.bookmarks.update(bookmarkId, { title: popupParams.title, url: popupParams.url }); } catch { /* keep existing */ }
   } else {
-    // Ctrl+D / toolbar flow: create a new bookmark
     try {
       const createArg: chrome.bookmarks.BookmarkCreateArg = { title: popupParams.title, url: popupParams.url };
       if (popupParams.parentId) createArg.parentId = popupParams.parentId;
@@ -114,13 +192,7 @@ saveBtn.addEventListener('click', async () => {
     try {
       await runtime.sendMessage({
         type: 'SAVE_BOOKMARK_META',
-        payload: {
-          bookmarkId,
-          url: popupParams.url,
-          title: popupParams.title,
-          note,
-          intent: selectedIntent,
-        },
+        payload: { bookmarkId, url: popupParams.url, title: popupParams.title, note, intent },
       });
     } catch {
       // Background might not be ready
@@ -149,7 +221,7 @@ document.getElementById('bookmarksLink')?.addEventListener('click', (e) => {
   window.close();
 });
 
-// Init params then setup page info
+// Init
 initParams().then(() => {
   if (popupParams) {
     pageTitle.textContent = popupParams.title || popupParams.url;
@@ -160,5 +232,6 @@ initParams().then(() => {
       pageFavicon.style.display = 'none';
     }
   }
+  loadCustomPills();
   noteInput.focus();
 });

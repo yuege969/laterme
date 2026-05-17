@@ -28,7 +28,7 @@
 
     <div class="intent-section">
       <div class="intent-label">分类（可选）</div>
-      <div class="intent-options">
+      <div class="intent-options" id="intentOptions">
         <label class="intent-option" data-intent="project">
           <input type="radio" name="intent" value="project" />
           <span class="intent-emoji">🛠️</span>
@@ -49,7 +49,34 @@
           <span class="intent-emoji">⏳</span>
           <span>临时查看</span>
         </label>
+        <label class="intent-option" data-intent="idea">
+          <input type="radio" name="intent" value="idea" />
+          <span class="intent-emoji">💡</span>
+          <span>灵感想法</span>
+        </label>
+        <label class="intent-option" data-intent="buy">
+          <input type="radio" name="intent" value="buy" />
+          <span class="intent-emoji">🛒</span>
+          <span>稍后购买</span>
+        </label>
+        <label class="intent-option" data-intent="fun">
+          <input type="radio" name="intent" value="fun" />
+          <span class="intent-emoji">🎬</span>
+          <span>娱乐消遣</span>
+        </label>
+        <label class="intent-option" data-intent="reading">
+          <input type="radio" name="intent" value="reading" />
+          <span class="intent-emoji">📰</span>
+          <span>待读文章</span>
+        </label>
       </div>
+      <input
+        type="text"
+        id="customIntentInput"
+        class="custom-intent-input"
+        placeholder="或输入自定义分类..."
+        maxlength="20"
+      />
     </div>
 
     <div class="footer">

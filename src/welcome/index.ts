@@ -1,5 +1,6 @@
 import { api, runtime } from '../utils/browser';
 
+
 document.getElementById('tryBtn')?.addEventListener('click', () => {
   // Close the welcome page so the user lands back on whatever tab was open before.
   // They can then press Ctrl+D on any page to try LaterMe.
