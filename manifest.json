@@ -44,7 +44,6 @@
     {
       "resources": [
         "content/popup/*",
-        "newtab/*",
         "welcome/*",
         "bookmarks/*",
         "options/*",
