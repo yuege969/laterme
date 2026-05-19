@@ -668,11 +668,12 @@ function showReviewComplete(): void {
 }
 
 function onReviewKeydown(e: KeyboardEvent): void {
-  if (e.key === 'ArrowUp')    { e.preventDefault(); reviewAction('open'); }
-  else if (e.key === 'ArrowLeft')  { e.preventDefault(); reviewAction('keep'); }
-  else if (e.key === 'ArrowDown')  { e.preventDefault(); reviewAction('archive'); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); reviewAction('delete'); }
-  else if (e.key === 'Escape')     { closeReviewMode(); }
+  const key = e.key;
+  if (key === 'o' || key === 'O')      { e.preventDefault(); reviewAction('open'); }
+  else if (key === 'k' || key === 'K') { e.preventDefault(); reviewAction('keep'); }
+  else if (key === 'a' || key === 'A') { e.preventDefault(); reviewAction('archive'); }
+  else if (key === 'd' || key === 'D') { e.preventDefault(); reviewAction('delete'); }
+  else if (key === 'Escape')           { closeReviewMode(); }
 }
 
 document.getElementById('reviewBtn')?.addEventListener('click', openReviewMode);
