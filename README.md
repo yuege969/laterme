@@ -1,47 +1,144 @@
 # LaterMe
 
-> 收藏，是为了再次遇见
+> Leave a note for your future self. Turn your bookmark graveyard into a knowledge garden.
 
-LaterMe 是一个浏览器扩展。它不帮你"收藏更多"，而是帮你"重新打开"——在每个收藏的瞬间，给未来的自己留一句话，让收藏夹从杂乱的仓库变成你的知识花园。
+LaterMe is a browser extension that doesn't help you "save more" — it helps you **reopen**. Every time you bookmark a page, leave a short note to your future self explaining why you saved it. Weeks or months later, when that bookmark resurfaces, you'll thank your past self for the context.
 
-## 功能
+## Why
 
-- **时间胶囊** — 按 Ctrl+D 收藏时弹出暖色卡片，写下你此刻的想法（最多 120 字）。未来的某天重新看到这个收藏时，你会感谢现在的自己
-- **智能回顾** — 打开书签管理页时，LaterMe 会适时提醒那些被遗忘的旧收藏，展示过去你留下的备注，让你想起当时的初心
-- **复盘清理** — 一键进入复盘模式，逐条审视旧书签，保留真正有价值的东西，归档或删除不再需要的
-- **本地存储** — 所有数据保存在设备 IndexedDB 中，不上传任何服务器，不需要任何 AI/LLM API
+Browser bookmarks suffer from a universal problem: we save pages with good intentions, then never look at them again. The bookmark folder becomes a graveyard of forgotten URLs — interesting articles we meant to read, tools we thought we'd need, ideas we wanted to explore.
 
-## 安装
+LaterMe fixes this with two simple ideas:
+
+1. **Capture intent at the moment of saving** — a short note, a category, a reason.
+2. **Resurface old bookmarks periodically** — bring them back into view before they're forgotten.
+
+## Features
+
+### Time Capsule Notes
+
+Press `Ctrl+D` (or `Cmd+D` on Mac) to bookmark a page. Instead of just a star icon, you'll see a warm card where you can:
+
+- Write a note (up to 120 characters) — *"The recursion trick in the second code example is exactly what I need for the parser refactor"*
+- Pick an intent category — project reference, learning, problem-solving, temporary, idea, shopping, entertainment, reading, or a custom tag
+
+The page description is pre-filled automatically when available, so you can save with one click.
+
+### Smart Resurfacing
+
+LaterMe periodically brings old bookmarks back to your attention:
+
+- **Daily or weekly reminders** — configure how often you want to be reminded
+- **Contextual notes** — each reminder shows the note you left when you first saved it
+- **Age-aware messages** — *"The you from 3 months ago left a note for you"*
+- **Batch review on Mondays** — weekly mode shows up to 5 bookmarks for a richer review session
+
+### Review & Cleanup Mode
+
+Open the bookmarks page and click "Review Cleanup" to enter a focused triage mode:
+
+- Go through bookmarks one at a time, oldest first
+- See when you saved it, how many times you've opened it, and your original note
+- **Keep**, **archive**, or **delete** — with keyboard shortcuts (`K` / `A` / `D`)
+- Progress bar and stats when you're done
+
+### Silent Expiry
+
+Bookmarks tagged as "temporary" automatically expire after 3 days. No cleanup needed.
+
+### Intent Filters
+
+The bookmarks page shows dynamic intent filters based on how you've categorized your saves. Click any tag to see only bookmarks in that category.
+
+### Fully Local & Private
+
+All data is stored in your browser's IndexedDB. Nothing is uploaded to any server. No analytics, no tracking, no AI/LLM API calls. Your notes stay on your device.
+
+## Installation
 
 ```bash
 npm install
-npm run build      # 产物在 dist/
-npm run dev        # 监听模式
+npm run build      # outputs to dist/
+npm run dev        # watch mode for development
 ```
 
-在 Chrome 中：打开 `chrome://extensions/` → 开启开发者模式 → 加载已解压的扩展程序 → 选择 `dist/` 目录。
+In Chrome:
+1. Open `chrome://extensions/`
+2. Enable **Developer mode** (toggle in the top right)
+3. Click **Load unpacked** and select the `dist/` directory
 
-## 使用
+## Usage
 
-| 操作 | 方式 |
-|------|------|
-| 收藏并留备注 | 按 `Ctrl+D`（Mac: `Cmd+D`），或点击浏览器星标 |
-| 浏览书签 | 点击扩展工具栏图标 → 「所有书签」 |
-| 复盘清理 | 书签管理页 → 点击「复盘清理」按钮 |
-| 设置 | 右键扩展图标 → 选项 |
+| Action | How |
+|--------|-----|
+| Bookmark with a note | Press `Ctrl+D` (Mac: `Cmd+D`) or click the browser star icon |
+| Bookmark current page | Click the LaterMe toolbar icon |
+| Browse all bookmarks | Click the toolbar icon, then "All Bookmarks" (or open the bookmarks page directly) |
+| Search & filter | Search bar, intent tags, and sort options on the bookmarks page |
+| Review & cleanup | Bookmarks page → "Review Cleanup" button |
+| Settings | Right-click the extension icon → Options |
 
-复盘模式快捷键：`↑` 打开 · `←` 保留 · `↓` 归档 · `→` 删除 · `Esc` 退出。
+### Keyboard Shortcuts
 
-## 技术栈
+**Inline popup:** `Enter` to save, `Esc` to dismiss
 
-TypeScript · Vite（自定义构建插件） · Manifest V3 · IndexedDB · Chrome/Edge 兼容
+**Review mode:** `O` open · `K` keep · `A` archive · `D` delete · `Esc` exit
 
-## 打包
+## Settings
+
+| Setting | Options | Default |
+|---------|---------|---------|
+| Resurfacing | Enabled / Disabled | Enabled |
+| Cooldown | 1–30 days before same bookmark resurfaces | 3 days |
+| Frequency | Daily / Weekly / Never | Daily |
+| Age range | 90 days – Unlimited | 1 year |
+
+## Tech Stack
+
+TypeScript · Vite (custom build plugin) · Manifest V3 · IndexedDB · Chrome/Edge compatible
+
+## Package
 
 ```bash
-npm run zip       # 生成 laterme.zip，可直接提交到商店
+npm run zip       # generates laterme.zip ready for store submission
 ```
 
-## 隐私
+## Project Structure
 
-不上传任何数据到远程服务器。卸载后浏览器原生书签不受影响。MIT 许可。
+```
+src/
+├── background/       # Service worker — lifecycle, alarms, message routing
+│   ├── index.ts      #   Main handler, message dispatch, install/update hooks
+│   ├── bookmark.ts   #   Bookmark create listener, history tracking
+│   ├── resurfacing.ts#   Alarm scheduling, candidate selection
+│   └── alarm.ts      #   Expiry check alarm
+├── content/          # Content scripts injected into every page
+│   ├── capture.ts    #   Entry point — listens for popup requests
+│   ├── inlinePopup.ts#   Shadow DOM popup with note editor and intent picker
+│   └── popup/        #   Fallback popup window (for chrome:// pages)
+├── bookmarks/        # Bookmarks management page
+│   ├── index.html    #   Full-page bookmarks view
+│   ├── index.ts      #   Render, filter, sort, search, review mode
+│   └── style.css     #   Page styles
+├── options/          # Settings page
+│   ├── index.html
+│   ├── index.ts      #   Settings form, import/export, stats
+│   └── style.css
+├── welcome/          # First-install welcome page
+├── storage/          # IndexedDB layer
+│   ├── db.ts         #   CRUD operations for metas, logs, settings
+│   └── types.ts      #   Type definitions, constants, defaults
+└── utils/
+    ├── browser.ts    #   Chrome API wrappers (cross-browser compat)
+    ├── extractor.ts  #   Page metadata extraction (favicon, description)
+    ├── format.ts     #   Date formatting, HTML escaping
+    └── matcher.ts    #   Resurfacing candidate selection logic
+```
+
+## Privacy
+
+LaterMe does not collect, transmit, or store any data on remote servers. All bookmark metadata, notes, and settings live exclusively in your browser's local storage (IndexedDB). Uninstalling the extension does not affect your native browser bookmarks.
+
+## License
+
+MIT
