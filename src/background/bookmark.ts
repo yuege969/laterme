@@ -35,9 +35,12 @@ export function initBookmarkListeners(): void {
     };
     try { await putMeta(meta); } catch { /* may already exist */ }
 
-    // Show full inline popup so the user can add a note and pick an intent.
-    // The popup is centered in the viewport, so it won't overlap Chrome's
-    // native bookmark bubble (which appears near the address bar).
+    // Delay the popup so Chrome's native bookmark dialog has time to close.
+    // Chrome fires bookmarks.onCreated immediately when Ctrl+D is pressed,
+    // while the folder-picker dialog is still open. Without a delay the
+    // two dialogs compete for focus — clicking one dismisses the other.
+    await new Promise((r) => setTimeout(r, 2000));
+
     let tabId: number | undefined;
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -46,27 +49,32 @@ export function initBookmarkListeners(): void {
 
     if (tabId) {
       const popupPayload = { url, title, bookmarkId: id };
-      try {
-        const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'SHOW_INLINE_POPUP',
-          payload: popupPayload,
-        });
-        if (response?.ok) return;
-      } catch (err) {
-        const msg = (err as Error)?.message ?? '';
-        if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId },
-              files: ['content/capture.js'],
-            });
-            await chrome.tabs.sendMessage(tabId, {
-              type: 'SHOW_INLINE_POPUP',
-              payload: popupPayload,
-            });
-          } catch { /* content script unavailable — bookmark saved, popup skipped */ }
+      const sendPopup = async (tId: number) => {
+        try {
+          const response = await chrome.tabs.sendMessage(tId, {
+            type: 'SHOW_INLINE_POPUP',
+            payload: popupPayload,
+          });
+          return response?.ok;
+        } catch (err) {
+          const msg = (err as Error)?.message ?? '';
+          if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId: tId },
+                files: ['content/capture.js'],
+              });
+              await chrome.tabs.sendMessage(tId, {
+                type: 'SHOW_INLINE_POPUP',
+                payload: popupPayload,
+              });
+              return true;
+            } catch { /* content script unavailable */ }
+          }
         }
-      }
+        return false;
+      };
+      await sendPopup(tabId);
     }
   });
 }
