@@ -35,7 +35,9 @@ export function initBookmarkListeners(): void {
     };
     try { await putMeta(meta); } catch { /* may already exist */ }
 
-    // Offer a lightweight toast so the user can optionally add a note.
+    // Show full inline popup so the user can add a note and pick an intent.
+    // The popup is centered in the viewport, so it won't overlap Chrome's
+    // native bookmark bubble (which appears near the address bar).
     let tabId: number | undefined;
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -43,11 +45,11 @@ export function initBookmarkListeners(): void {
     } catch { /* quiet */ }
 
     if (tabId) {
-      const toastPayload = { url, title, bookmarkId: id };
+      const popupPayload = { url, title, bookmarkId: id };
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'SHOW_SAVE_TOAST',
-          payload: toastPayload,
+          type: 'SHOW_INLINE_POPUP',
+          payload: popupPayload,
         });
         if (response?.ok) return;
       } catch (err) {
@@ -59,10 +61,10 @@ export function initBookmarkListeners(): void {
               files: ['content/capture.js'],
             });
             await chrome.tabs.sendMessage(tabId, {
-              type: 'SHOW_SAVE_TOAST',
-              payload: toastPayload,
+              type: 'SHOW_INLINE_POPUP',
+              payload: popupPayload,
             });
-          } catch { /* content script unavailable — bookmark saved, toast skipped */ }
+          } catch { /* content script unavailable — bookmark saved, popup skipped */ }
         }
       }
     }
