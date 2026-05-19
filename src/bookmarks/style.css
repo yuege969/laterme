@@ -526,7 +526,7 @@ body {
   font-weight: 400 !important;
 }
 .empty-state::before {
-  content: "📚";
+  content: "🌱";
   display: block;
   font-size: 48px;
   margin-bottom: 24px;

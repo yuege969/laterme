@@ -672,7 +672,7 @@ function showReviewComplete(): void {
   document.querySelector('.review-overlay')!.classList.add('hidden');
   document.getElementById('reviewComplete')!.classList.remove('hidden');
   document.getElementById('reviewStats')!.innerHTML = `
-    保留了 ${reviewStats.kept} 个，归档了 ${reviewStats.archived} 个，删除了 ${reviewStats.deleted} 个
+    🌱 保留了 ${reviewStats.kept} 颗种子 · 📦 归档了 ${reviewStats.archived} 个 · 🗑 清理了 ${reviewStats.deleted} 个
   `;
   document.removeEventListener('keydown', onReviewKeydown);
 }
