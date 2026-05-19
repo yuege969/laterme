@@ -1,4 +1,4 @@
-import { alarms, tabs, runtime } from '../utils/browser';
+import { alarms, runtime } from '../utils/browser';
 import {
   getAllMetas,
   getSettings,
@@ -60,25 +60,6 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
     pendingResurfacingDate: today,
   });
 
-  // Try to update already-open newtab pages
-  const patterns = ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'];
-  for (const pattern of patterns) {
-    try {
-      const matched = await tabs.query({ url: [pattern] });
-      for (const tab of matched) {
-        if (tab.id) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, {
-              type: 'SHOW_RESURFACING',
-              payload: { best, list: picks },
-            });
-            break;
-          } catch { /* not ready */ }
-        }
-      }
-      if (matched.length > 0) break;
-    } catch { /* pattern not valid in this browser */ }
-  }
 }
 
 async function checkExpiredBookmarks(): Promise<void> {
