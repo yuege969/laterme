@@ -3,9 +3,10 @@ import type { AppSettings } from '../storage/types';
 import { DEFAULT_SETTINGS } from '../storage/types';
 
 // DOM elements
-const resurfacingEnabled  = document.getElementById('resurfacingEnabled')  as HTMLInputElement;
-const resurfacingFrequency = document.getElementById('resurfacingFrequency') as HTMLSelectElement;
-const maxAgeDays          = document.getElementById('maxAgeDays')          as HTMLSelectElement;
+const resurfacingEnabled      = document.getElementById('resurfacingEnabled')      as HTMLInputElement;
+const resurfacingFrequency     = document.getElementById('resurfacingFrequency')     as HTMLSelectElement;
+const resurfacingCooldownDays  = document.getElementById('resurfacingCooldownDays')  as HTMLSelectElement;
+const maxAgeDays              = document.getElementById('maxAgeDays')              as HTMLSelectElement;
 const importBookmarksBtn  = document.getElementById('importBookmarksBtn')  as HTMLButtonElement;
 const exportBtn           = document.getElementById('exportBtn')           as HTMLButtonElement;
 const importBtn           = document.getElementById('importBtn')           as HTMLButtonElement;
@@ -36,6 +37,7 @@ async function loadSettings(): Promise<void> {
 
   resurfacingEnabled.checked = settings.resurfacingEnabled;
   resurfacingFrequency.value = settings.resurfacingFrequency;
+  resurfacingCooldownDays.value = String(settings.resurfacingCooldownDays);
   maxAgeDays.value = String(settings.maxAgeDays);
 }
 
@@ -76,6 +78,10 @@ resurfacingEnabled.addEventListener('change', () => {
 
 resurfacingFrequency.addEventListener('change', () => {
   saveSetting({ resurfacingFrequency: resurfacingFrequency.value as AppSettings['resurfacingFrequency'] });
+});
+
+resurfacingCooldownDays.addEventListener('change', () => {
+  saveSetting({ resurfacingCooldownDays: parseInt(resurfacingCooldownDays.value, 10) });
 });
 
 maxAgeDays.addEventListener('change', () => {
