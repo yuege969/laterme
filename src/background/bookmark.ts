@@ -1,5 +1,6 @@
-import { bookmarks, tabs, openPopupWindow } from '../utils/browser';
-import { updateMeta, getMetaByUrl } from '../storage/db';
+import { bookmarks, tabs } from '../utils/browser';
+import { putMeta, updateMeta, getMetaByUrl } from '../storage/db';
+import type { BookmarkMeta } from '../storage/types';
 
 const POPUP_FLAG_KEY = 'laterme_popup_created';
 
@@ -7,8 +8,7 @@ export function initBookmarkListeners(): void {
   bookmarks.onCreated.addListener(async (id, bookmark) => {
     if (!bookmark.url) return;
 
-    // Check if this bookmark was just created by our own save flow — skip to
-    // avoid an infinite loop.
+    // Skip if this bookmark was created by our own INLINE_SAVE handler.
     try {
       const data = await chrome.storage.local.get(POPUP_FLAG_KEY);
       const flag = data[POPUP_FLAG_KEY] as number | undefined;
@@ -20,13 +20,27 @@ export function initBookmarkListeners(): void {
 
     const url = bookmark.url;
     const title = bookmark.title || url;
-    const parentId = bookmark.parentId || '';
 
-    // Remove the native bookmark immediately to suppress Chrome's default
-    // "Bookmark added" bubble. Our inline popup handles the save instead.
-    try { await bookmarks.remove(id); } catch { /* quiet */ }
+    // Keep the native bookmark — create an empty meta entry alongside it.
+    const meta: BookmarkMeta = {
+      bookmarkId: id,
+      url,
+      title,
+      note: '',
+      intent: null,
+      createdAt: bookmark.dateAdded || Date.now(),
+      lastOpenedAt: bookmark.dateAdded || Date.now(),
+      openCount: 0,
+      status: 'active',
+    };
+    try { await putMeta(meta); } catch { /* may already exist */ }
 
-    // Locate the active tab once; reuse for both scripting and messaging.
+    // Delay the popup so Chrome's native bookmark dialog has time to close.
+    // Chrome fires bookmarks.onCreated immediately when Ctrl+D is pressed,
+    // while the folder-picker dialog is still open. Without a delay the
+    // two dialogs compete for focus — clicking one dismisses the other.
+    await new Promise((r) => setTimeout(r, 2000));
+
     let tabId: number | undefined;
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -34,42 +48,34 @@ export function initBookmarkListeners(): void {
     } catch { /* quiet */ }
 
     if (tabId) {
-      // Show our inline popup (bookmarkId omitted — removed above, will be
-      // re-created by the INLINE_SAVE handler when the user confirms).
-      const popupPayload = { url, title, parentId };
-      try {
-        const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'SHOW_INLINE_POPUP',
-          payload: popupPayload,
-        });
-        if (response?.ok) return;
-      } catch (err) {
-        const msg = (err as Error)?.message ?? '';
-        if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
-          // Content script not yet injected (tab was open before extension loaded).
-          // Inject it now and retry.
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId },
-              files: ['content/capture.js'],
-            });
-            const response2 = await chrome.tabs.sendMessage(tabId, {
-              type: 'SHOW_INLINE_POPUP',
-              payload: popupPayload,
-            });
-            if (response2?.ok) return;
-          } catch { /* fall through to popup window */ }
-        } else {
-          return;
+      const popupPayload = { url, title, bookmarkId: id };
+      const sendPopup = async (tId: number) => {
+        try {
+          const response = await chrome.tabs.sendMessage(tId, {
+            type: 'SHOW_INLINE_POPUP',
+            payload: popupPayload,
+          });
+          return response?.ok;
+        } catch (err) {
+          const msg = (err as Error)?.message ?? '';
+          if (msg.includes('Could not establish connection') || msg.includes('Receiving end does not exist')) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId: tId },
+                files: ['content/capture.js'],
+              });
+              await chrome.tabs.sendMessage(tId, {
+                type: 'SHOW_INLINE_POPUP',
+                payload: popupPayload,
+              });
+              return true;
+            } catch { /* content script unavailable */ }
+          }
         }
-      }
+        return false;
+      };
+      await sendPopup(tabId);
     }
-
-    // Fallback: open as a separate popup window (e.g. on chrome:// pages)
-    const popupUrl = chrome.runtime.getURL(
-      `content/popup/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&parentId=${encodeURIComponent(parentId)}&bookmarkId=${encodeURIComponent(id)}`
-    );
-    openPopupWindow(popupUrl);
   });
 }
 

@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "LaterMe",
   "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsavST+nY6ZatQsRDbf/GYCCWa0wc3aMUO5uBR2gmAdOj2JtdJGlqbT+5Qp4wrDqWyYLlE/Dm9j1hQBuCBy2xdE+GKoCXcOcPy++/9Cq9VVp4zQUVyVkVqluoHG3ZIcB3xbi/V2kCepbCQt7LbKL1HJNJi/YaoKVRcfZQ+BFzWXo2rwrM0ivgPAICOGBlUv/5ae4cgctfgyxboe6r2r2kk73TJXH4gtfE6PjmQwwefYld/VjUWV/GlA5x67tYj5Gbn95jkj83+mitI6O16rHhsn5uK1P4JdSM9vHe0FyfWIYB/7HMRTcppBNtk66EuhVgb+WVKsNMXgq+595c396GbQIDAQAB",
   "description": "收藏时留一句话，让收藏夹重新活过来",
   "permissions": [
     "bookmarks",
@@ -44,7 +45,6 @@
     {
       "resources": [
         "content/popup/*",
-        "newtab/*",
         "welcome/*",
         "bookmarks/*",
         "options/*",

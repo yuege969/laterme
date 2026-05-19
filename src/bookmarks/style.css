@@ -37,6 +37,46 @@
   --surf-banner-bdr:#e8d5b0;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:             #1a1815;
+    --bg-2:           #242220;
+    --surface:        #242220;
+    --border:         #3a3530;
+    --border-2:       #4a4540;
+    --border-3:       #3a3530;
+    --border-4:       #333028;
+    --text:           #e0d5c5;
+    --text-title:     #f0e8d8;
+    --text-2:         #b0a590;
+    --text-3:         #908878;
+    --text-4:         #787060;
+    --text-5:         #686058;
+    --text-6:         #585048;
+    --accent:         #d4a574;
+    --accent-hover:   #e0b886;
+    --accent-light:   #c89660;
+    --accent-text:    #e0b886;
+    --pill-bg:        #2a2820;
+    --pill-hover:     #333028;
+    --pill-active-bg: #d4a574;
+    --pill-active-fg: #1a1815;
+    --card-bg:        #242220;
+    --card-shadow:    rgba(0,0,0,0.15);
+    --card-hover-shadow: rgba(0,0,0,0.25);
+    --note-bg:        #2a2820;
+    --note-hover-bg:  #333028;
+    --note-hover-fg:  #e0b886;
+    --bm-intent-bg:   #333028;
+    --folder-bdr:     #3a3530;
+    --review-bg:      rgba(0,0,0,0.7);
+    --review-note-bg: #2a2520;
+    --review-note-bdr:#8a6a4a;
+    --surf-banner-bg: linear-gradient(160deg,#2a2520 0%,#2a2820 40%,#252218 100%);
+    --surf-banner-bdr:#5a4a35;
+  }
+}
+
 
 
 /* ── Reset ──────────────────────────────────────────────────────────── */
@@ -486,7 +526,7 @@ body {
   font-weight: 400 !important;
 }
 .empty-state::before {
-  content: "📚";
+  content: "🌱";
   display: block;
   font-size: 48px;
   margin-bottom: 24px;

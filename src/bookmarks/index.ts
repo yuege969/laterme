@@ -3,6 +3,16 @@ import type { BookmarkMeta, IntentType, ResurfacingScore } from '../storage/type
 import { INTENT_LABELS, INTENT_EMOJI } from '../storage/types';
 import { escapeHtml, getAgeDays, getDaysText } from '../utils/format';
 
+async function getCooldownMs(): Promise<number> {
+  try {
+    const res = await runtime.sendMessage({ type: 'GET_SETTINGS' });
+    const days = res?.settings?.resurfacingCooldownDays ?? 3;
+    return days * 24 * 60 * 60 * 1000;
+  } catch {
+    return 3 * 24 * 60 * 60 * 1000;
+  }
+}
+
 interface DisplayItem {
   bookmark: chrome.bookmarks.BookmarkTreeNode;
   meta: BookmarkMeta | null;
@@ -458,7 +468,7 @@ function showResurfacingSingle(banner: HTMLElement, score: ResurfacingScore): vo
 
   snoozeBtn?.addEventListener('click', async () => {
     await runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' } });
-    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000 } });
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, nextReminderAt: Date.now() + (await getCooldownMs()) } });
     close();
   });
 
@@ -662,17 +672,18 @@ function showReviewComplete(): void {
   document.querySelector('.review-overlay')!.classList.add('hidden');
   document.getElementById('reviewComplete')!.classList.remove('hidden');
   document.getElementById('reviewStats')!.innerHTML = `
-    保留了 ${reviewStats.kept} 个，归档了 ${reviewStats.archived} 个，删除了 ${reviewStats.deleted} 个
+    🌱 保留了 ${reviewStats.kept} 颗种子 · 📦 归档了 ${reviewStats.archived} 个 · 🗑 清理了 ${reviewStats.deleted} 个
   `;
   document.removeEventListener('keydown', onReviewKeydown);
 }
 
 function onReviewKeydown(e: KeyboardEvent): void {
-  if (e.key === 'ArrowUp')    { e.preventDefault(); reviewAction('open'); }
-  else if (e.key === 'ArrowLeft')  { e.preventDefault(); reviewAction('keep'); }
-  else if (e.key === 'ArrowDown')  { e.preventDefault(); reviewAction('archive'); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); reviewAction('delete'); }
-  else if (e.key === 'Escape')     { closeReviewMode(); }
+  const key = e.key;
+  if (key === 'o' || key === 'O')      { e.preventDefault(); reviewAction('open'); }
+  else if (key === 'k' || key === 'K') { e.preventDefault(); reviewAction('keep'); }
+  else if (key === 'a' || key === 'A') { e.preventDefault(); reviewAction('archive'); }
+  else if (key === 'd' || key === 'D') { e.preventDefault(); reviewAction('delete'); }
+  else if (key === 'Escape')           { closeReviewMode(); }
 }
 
 document.getElementById('reviewBtn')?.addEventListener('click', openReviewMode);

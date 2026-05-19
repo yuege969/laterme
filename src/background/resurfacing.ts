@@ -1,4 +1,4 @@
-import { alarms, tabs, runtime } from '../utils/browser';
+import { alarms } from '../utils/browser';
 import {
   getAllMetas,
   getSettings,
@@ -60,54 +60,18 @@ export async function checkAndNotifyResurfacing(): Promise<void> {
     pendingResurfacingDate: today,
   });
 
-  // Try to update already-open newtab pages
-  const patterns = ['chrome://newtab/*', 'edge://newtab/*', 'about:newtab*'];
-  for (const pattern of patterns) {
-    try {
-      const matched = await tabs.query({ url: [pattern] });
-      for (const tab of matched) {
-        if (tab.id) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, {
-              type: 'SHOW_RESURFACING',
-              payload: { best, list: picks },
-            });
-            break;
-          } catch { /* not ready */ }
-        }
-      }
-      if (matched.length > 0) break;
-    } catch { /* pattern not valid in this browser */ }
-  }
 }
 
 async function checkExpiredBookmarks(): Promise<void> {
   const allMetas = await getAllMetas();
   const now = Date.now();
   const threeDays = 3 * 24 * 60 * 60 * 1000;
-  let expiredCount = 0;
 
   for (const meta of allMetas) {
     if (meta.intent === 'temp' && meta.status === 'active') {
       if (now - meta.createdAt > threeDays) {
         await updateMeta(meta.bookmarkId, { status: 'expired' });
-        expiredCount++;
       }
-    }
-  }
-
-  if (expiredCount > 0) {
-    // Notify user about expired temp bookmarks
-    try {
-      await chrome.notifications?.create('expired-temp', {
-        type: 'basic',
-        iconUrl: runtime.getURL('icons/icon48.png'),
-        title: 'LaterMe',
-        message: `${expiredCount} 个临时收藏已过期`,
-        priority: 0,
-      });
-    } catch {
-      // Notifications might not be available
     }
   }
 }

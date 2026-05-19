@@ -1,4 +1,4 @@
-// Inline popup injected directly into the page via Shadow DOM.
+// Inline popup and save toast injected directly into the page via Shadow DOM.
 
 export interface InlinePopupParams {
   url: string;
@@ -9,7 +9,98 @@ export interface InlinePopupParams {
   favIconUrl?: string;
 }
 
+export interface SaveToastParams {
+  url: string;
+  title: string;
+  bookmarkId: string;
+}
+
 const HOST_ID = 'laterme-inline-popup-host';
+const TOAST_ID = 'laterme-save-toast-host';
+
+// -- Toast Styles (scoped to shadow root) ------------------------------------
+const TOAST_CSS = `
+:host {
+  --bg:             #fffef9;
+  --surface:        #fefcf7;
+  --border:         #e8e0d3;
+  --text:           #3d2e1c;
+  --text-2:         #8b7355;
+  --accent:         #c4863b;
+  --accent-hover:   #b8761f;
+  --shadow-accent:  rgba(180,120,40,0.2);
+}
+
+:host {
+  all: initial;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px var(--shadow-accent);
+  animation: toastIn 0.25s cubic-bezier(0.22,1,0.36,1);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+
+.toast-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.toast-label { font-weight: 500; }
+
+.toast-action {
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.toast-action:hover { color: var(--accent-hover); background: rgba(196,134,59,0.06); }
+
+.toast-close {
+  color: var(--text-2);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.toast-close:hover { opacity: 1; }
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+`;
 
 // -- Styles (scoped to shadow root) -------------------------------------------
 const CSS = `
@@ -600,4 +691,57 @@ export function showInlinePopup(params: InlinePopupParams): void {
   }
 
   noteInput.focus();
+}
+
+// -- Save Toast ----------------------------------------------------------------
+
+export function removeSaveToast(): void {
+  document.getElementById(TOAST_ID)?.remove();
+}
+
+export function showSaveToast(params: SaveToastParams): void {
+  removeSaveToast();
+
+  const host = document.createElement('div');
+  host.id = TOAST_ID;
+
+  const shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `
+    <style>${TOAST_CSS}</style>
+    <div class="toast">
+      <span class="toast-dot"></span>
+      <span class="toast-label">已收藏</span>
+      <button class="toast-action" id="toastNoteBtn">添加备注</button>
+      <button class="toast-close" id="toastCloseBtn">&times;</button>
+    </div>
+  `;
+  document.documentElement.appendChild(host);
+
+  let dismissed = false;
+  let timer: ReturnType<typeof setTimeout>;
+
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(timer);
+    removeSaveToast();
+  };
+
+  // Auto-dismiss after 4 seconds
+  timer = setTimeout(dismiss, 4000);
+
+  // "添加备注" → open full popup for notes
+  const noteBtn = shadow.getElementById('toastNoteBtn') as HTMLButtonElement;
+  noteBtn.addEventListener('click', () => {
+    dismiss();
+    showInlinePopup({
+      url: params.url,
+      title: params.title,
+      bookmarkId: params.bookmarkId,
+    });
+  });
+
+  // Close button
+  const closeBtn = shadow.getElementById('toastCloseBtn') as HTMLButtonElement;
+  closeBtn.addEventListener('click', dismiss);
 }
