@@ -38,6 +38,7 @@ export interface AppSettings {
   resurfacingFrequency: 'daily' | 'weekly' | 'never';
   maxAgeDays: number;
   lastResurfacingDate: string;
+  resurfacingCooldownDays: number;
   customIntents: string[];
 }
 
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   resurfacingFrequency: 'daily',
   maxAgeDays: 365,
   lastResurfacingDate: '',
+  resurfacingCooldownDays: 3,
   customIntents: [],
 };
 

@@ -3,6 +3,16 @@ import type { BookmarkMeta, IntentType, ResurfacingScore } from '../storage/type
 import { INTENT_LABELS, INTENT_EMOJI } from '../storage/types';
 import { escapeHtml, getAgeDays, getDaysText } from '../utils/format';
 
+async function getCooldownMs(): Promise<number> {
+  try {
+    const res = await runtime.sendMessage({ type: 'GET_SETTINGS' });
+    const days = res?.settings?.resurfacingCooldownDays ?? 3;
+    return days * 24 * 60 * 60 * 1000;
+  } catch {
+    return 3 * 24 * 60 * 60 * 1000;
+  }
+}
+
 interface DisplayItem {
   bookmark: chrome.bookmarks.BookmarkTreeNode;
   meta: BookmarkMeta | null;
@@ -458,7 +468,7 @@ function showResurfacingSingle(banner: HTMLElement, score: ResurfacingScore): vo
 
   snoozeBtn?.addEventListener('click', async () => {
     await runtime.sendMessage({ type: 'LOG_RESURFACING_ACTION', payload: { bookmarkId: score.bookmarkId, url: score.url, action: 'snoozed' } });
-    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000 } });
+    await runtime.sendMessage({ type: 'UPDATE_META', payload: { bookmarkId: score.bookmarkId, nextReminderAt: Date.now() + (await getCooldownMs()) } });
     close();
   });
 

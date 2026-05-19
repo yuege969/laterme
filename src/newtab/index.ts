@@ -2,6 +2,16 @@ import { runtime } from '../utils/browser';
 import type { ResurfacingScore } from '../storage/types';
 import { getDaysText, escapeHtml } from '../utils/format';
 
+async function getCooldownMs(): Promise<number> {
+  try {
+    const res = await runtime.sendMessage({ type: 'GET_SETTINGS' });
+    const days = res?.settings?.resurfacingCooldownDays ?? 3;
+    return days * 24 * 60 * 60 * 1000;
+  } catch {
+    return 3 * 24 * 60 * 60 * 1000;
+  }
+}
+
 // Clock
 function updateClock(): void {
   const now = new Date();
@@ -206,7 +216,7 @@ function showBanner(score: ResurfacingScore): void {
       type: 'UPDATE_META',
       payload: {
         bookmarkId: score.bookmarkId,
-        nextReminderAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
+        nextReminderAt: Date.now() + (await getCooldownMs()),
       },
     });
     banner.classList.add('hidden');
