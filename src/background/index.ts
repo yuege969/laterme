@@ -219,14 +219,8 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     case 'INLINE_SKIP': {
-      const { title, url, parentId } = msg.payload as { title: string; url: string; parentId?: string };
-      (async () => {
-        await chrome.storage.local.set({ laterme_popup_created: Date.now() });
-        const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
-        if (parentId) arg.parentId = parentId;
-        try { await chrome.bookmarks.create(arg); } catch { /* already exists */ }
-        sendResponse({ success: true });
-      })();
+      // Legacy — native bookmarks are no longer deleted, so no action needed.
+      sendResponse({ success: true });
       return true;
     }
 
@@ -236,29 +230,29 @@ runtime.onMessage.addListener((message, sender, sendResponse) => {
         note: string; intent: BookmarkMeta['intent'];
       };
       (async () => {
-        await chrome.storage.local.set({ laterme_popup_created: Date.now() });
         let finalBookmarkId = bookmarkId;
         if (finalBookmarkId) {
-          // Star-icon flow: bookmark already exists, update it
-          try { await chrome.bookmarks.update(finalBookmarkId, { title, url }); } catch { /* keep existing */ }
+          // Native save flow: bookmark already exists with empty meta — update it.
+          await updateMeta(finalBookmarkId, { note, intent, title });
         } else {
-          // Ctrl+D / toolbar flow: create a new bookmark
+          // Toolbar flow: create bookmark and meta together.
+          await chrome.storage.local.set({ laterme_popup_created: Date.now() });
           const arg: chrome.bookmarks.BookmarkCreateArg = { title, url };
           if (parentId) arg.parentId = parentId;
           const bookmark = await chrome.bookmarks.create(arg);
           finalBookmarkId = bookmark.id;
+          await putMeta({
+            bookmarkId: finalBookmarkId,
+            url,
+            title,
+            note,
+            intent,
+            createdAt: Date.now(),
+            lastOpenedAt: Date.now(),
+            openCount: 0,
+            status: 'active',
+          });
         }
-        await putMeta({
-          bookmarkId: finalBookmarkId,
-          url,
-          title,
-          note,
-          intent,
-          createdAt: Date.now(),
-          lastOpenedAt: Date.now(),
-          openCount: 0,
-          status: 'active',
-        });
         sendResponse({ success: true });
       })();
       return true;
